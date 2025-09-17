@@ -609,14 +609,6 @@ func isGovmanFunction(line string) bool {
 		"# Hook function",
 		"# Auto-switch Go version",
 		"# Trigger auto-switch",
-		"# Initialize completion",
-		"# Initialize zsh completion",
-		"eval \"$(govman completion",
-		"govman completion fish",
-		"Get-Command govman",
-		"Test-Path .govman-version",
-		"cat .govman-version",
-		"Get-Content .govman-version",
 	}
 
 	for _, pattern := range govmanPatterns {
