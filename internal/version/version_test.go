@@ -5,10 +5,10 @@ import (
 )
 
 func setTestValues(v, c, d, b string) {
-	version = v
-	commit = c
-	date = d
-	buildBy = b
+	Version = v
+	Commit = c
+	Date = d
+	BuildBy = b
 }
 
 func TestGet(t *testing.T) {

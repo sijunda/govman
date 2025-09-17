@@ -6,13 +6,17 @@
 # ==================================================================================
 
 # Version and build info
-# Try to get exact tag first, fallback to git describe for development builds
-GIT_TAG ?= $(shell git describe --tags --exact-match 2>/dev/null)
-ifneq ($(GIT_TAG),)
-    VERSION ?= $(GIT_TAG)
-else
-    VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
-endif
+# Priority: 1. Manual VERSION env var, 2. Git tag (exact), 3. Git describe, 4. Fallback
+VERSION ?= $(shell \
+	if [ -n "$$VERSION" ]; then \
+		echo "$$VERSION"; \
+	elif git describe --tags --exact-match HEAD >/dev/null 2>&1; then \
+		git describe --tags --exact-match HEAD; \
+	elif git describe --tags >/dev/null 2>&1; then \
+		git describe --tags --always --dirty; \
+	else \
+		echo "v0.0.0-dev"; \
+	fi)
 
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "none")
 BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
@@ -43,15 +47,15 @@ RED = \033[31m
 RESET = \033[0m
 BOLD = \033[1m
 
-# Linker flags with comprehensive build info
+# FIXED: Better linker flags with version path
 LDFLAGS = -ldflags "\
 	-s -w \
-	-X $(MODULE_NAME)/internal/version.version=$(VERSION) \
-	-X $(MODULE_NAME)/internal/version.commit=$(COMMIT) \
-	-X $(MODULE_NAME)/internal/version.branch=$(BRANCH) \
-	-X $(MODULE_NAME)/internal/version.date=$(DATE) \
-	-X $(MODULE_NAME)/internal/version.buildBy=$(BUILD_BY) \
-	-X $(MODULE_NAME)/internal/version.goVersion=$(GO_VERSION)"
+	-X '$(MODULE_NAME)/internal/version.Version=$(VERSION)' \
+	-X '$(MODULE_NAME)/internal/version.Commit=$(COMMIT)' \
+	-X '$(MODULE_NAME)/internal/version.Branch=$(BRANCH)' \
+	-X '$(MODULE_NAME)/internal/version.Date=$(DATE)' \
+	-X '$(MODULE_NAME)/internal/version.BuildBy=$(BUILD_BY)' \
+	-X '$(MODULE_NAME)/internal/version.GoVersion=$(GO_VERSION)'"
 
 # Build tags
 BUILD_TAGS ?= netgo
@@ -144,6 +148,34 @@ deps: ## Download and verify dependencies
 	@echo "$(GREEN)✅ Dependencies updated!$(RESET)"
 
 # ==================================================================================
+# VERSION DEBUGGING TARGETS
+# ==================================================================================
+
+debug-version: ## Debug version detection
+	@echo "$(BOLD)$(CYAN)Version Detection Debug:$(RESET)"
+	@echo "  Manual VERSION env: $(GREEN)$${VERSION}$(RESET)"
+	@echo "  Git exact tag: $(GREEN)$(shell git describe --tags --exact-match HEAD 2>/dev/null || echo 'none')$(RESET)"
+	@echo "  Git describe: $(GREEN)$(shell git describe --tags --always --dirty 2>/dev/null || echo 'none')$(RESET)"
+	@echo "  Git status clean: $(GREEN)$(shell if [ -z "$$(git status --porcelain 2>/dev/null)" ]; then echo 'yes'; else echo 'no'; fi)$(RESET)"
+	@echo "  Current VERSION: $(GREEN)$(VERSION)$(RESET)"
+	@echo ""
+	@echo "$(BOLD)$(CYAN)Git Information:$(RESET)"
+	@echo "  Current branch: $(GREEN)$(BRANCH)$(RESET)"
+	@echo "  Last commit: $(GREEN)$(COMMIT)$(RESET)"
+	@echo "  Available tags:"
+	@git tag -l | tail -10 | sed 's/^/    /'
+
+check-git-status: ## Check current git status
+	@echo "$(CYAN)🔍 Checking git status...$(RESET)"
+	@if [ -n "$$(git status --porcelain)" ]; then \
+		echo "$(RED)❌ Working directory is dirty:$(RESET)"; \
+		git status --short; \
+		echo "$(YELLOW)💡 Commit your changes to remove '-dirty' suffix$(RESET)"; \
+	else \
+		echo "$(GREEN)✅ Working directory is clean$(RESET)"; \
+	fi
+
+# ==================================================================================
 # CODE QUALITY
 # ==================================================================================
 
@@ -216,16 +248,18 @@ test-benchmark: ## Run benchmark tests
 test-all: test test-integration test-benchmark ## Run all tests
 
 # ==================================================================================
-# BUILDING
+# BUILDING - WITH BETTER VERSION HANDLING
 # ==================================================================================
 
-build: ## Build for current platform
-	@echo "$(CYAN)🏗️  Building govman for $(GOOS)/$(GOARCH)...$(RESET)"
+build: debug-version ## Build for current platform
+	@echo "$(CYAN)🏗️  Building govman for $(GOOS)/$(GOARCH) with version $(VERSION)...$(RESET)"
 	mkdir -p $(BUILD_DIR)
 	CGO_ENABLED=$(CGO_ENABLED) GOOS=$(GOOS) GOARCH=$(GOARCH) \
 		go build $(LDFLAGS) -tags=$(BUILD_TAGS) -o $(BUILD_DIR)/$(BINARY_NAME) $(MAIN_PACKAGE)
 	@if [ "$(GOOS)" = "windows" ]; then mv $(BUILD_DIR)/$(BINARY_NAME) $(BUILD_DIR)/$(BINARY_NAME).exe; fi
-	@echo "$(GREEN)✅ Built: $(BUILD_DIR)/$(BINARY_NAME)$(RESET)"
+	@echo "$(GREEN)✅ Built: $(BUILD_DIR)/$(BINARY_NAME) ($(VERSION))$(RESET)"
+	@echo "$(YELLOW)🔍 Testing version output:$(RESET)"
+	@$(BUILD_DIR)/$(BINARY_NAME) --version 2>/dev/null || echo "$(YELLOW)⚠️  Binary doesn't support --version flag$(RESET)"
 
 build-binary: ## Build binary for current platform
 	@echo "$(CYAN)🏗️  Building binary for $(GOOS)/$(GOARCH)...$(RESET)"
@@ -241,11 +275,21 @@ build-debug: ## Build with debug information
 	CGO_ENABLED=1 go build -gcflags="all=-N -l" -tags=$(BUILD_TAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-debug $(MAIN_PACKAGE)
 	@echo "$(GREEN)✅ Debug build: $(BUILD_DIR)/$(BINARY_NAME)-debug$(RESET)"
 
-# Added missing build-all target
+# Build with explicit version
+build-release: ## Build release version with explicit version check
+	@echo "$(CYAN)🚀 Building release version...$(RESET)"
+	@if [ -z "$(VERSION)" ] || echo "$(VERSION)" | grep -q "dirty"; then \
+		echo "$(RED)❌ Cannot build release with dirty or missing version$(RESET)"; \
+		echo "$(YELLOW)💡 Clean your git status and ensure you're on a tagged commit$(RESET)"; \
+		exit 1; \
+	fi
+	$(MAKE) build
+	@echo "$(GREEN)🚀 Release build completed: $(VERSION)$(RESET)"
+
 build-all: build-binaries ## Build binaries for all supported platforms (alias)
 
 build-binaries: ## Build binaries for all supported platforms
-	@echo "$(CYAN)🏗️  Building binaries for all platforms...$(RESET)"
+	@echo "$(CYAN)🏗️  Building binaries for all platforms with version $(VERSION)...$(RESET)"
 	@rm -rf $(DIST_DIR)
 	@mkdir -p $(DIST_DIR)
 	@total=$$(echo "$(PLATFORMS)" | wc -w); \
@@ -264,7 +308,7 @@ build-binaries: ## Build binaries for all supported platforms
 			echo "$(RED)❌ Failed to build for $$os/$$arch$(RESET)"; \
 		fi; \
 	done
-	@echo "$(GREEN)🎉 All binaries built! Check $(DIST_DIR)/$(RESET)"
+	@echo "$(GREEN)🎉 All binaries built with version $(VERSION)! Check $(DIST_DIR)/$(RESET)"
 	@ls -la $(DIST_DIR)/
 
 build-archives: build-all ## Build archives for distribution
@@ -315,7 +359,6 @@ uninstall: ## Uninstall from system
 # RELEASE MANAGEMENT
 # ==================================================================================
 
-# ADDED: Pre-release checks to ensure clean state
 check-git-clean: ## Check if git working directory is clean
 	@echo "$(CYAN)🔍 Checking git status...$(RESET)"
 	@if [ -n "$$(git status --porcelain)" ]; then \
@@ -327,12 +370,12 @@ check-git-clean: ## Check if git working directory is clean
 
 check-git-tag: ## Check if current commit is tagged
 	@echo "$(CYAN)🏷️  Checking git tag...$(RESET)"
-	@if [ -z "$(GIT_TAG)" ]; then \
+	@if ! git describe --tags --exact-match HEAD >/dev/null 2>&1; then \
 		echo "$(RED)❌ Current commit is not tagged. Please create and push a tag first.$(RESET)"; \
 		echo "$(YELLOW)Example: make tag TAG=v1.0.0$(RESET)"; \
 		exit 1; \
 	fi
-	@echo "$(GREEN)✅ Current commit is tagged: $(GIT_TAG)$(RESET)"
+	@echo "$(GREEN)✅ Current commit is tagged: $(shell git describe --tags --exact-match HEAD)$(RESET)"
 
 pre-release-checks: check-git-clean check-git-tag validate test ## Run all pre-release checks
 	@echo "$(GREEN)✅ All pre-release checks passed!$(RESET)"
@@ -367,63 +410,17 @@ tag: ## Create and push a new tag
 	@echo "$(GREEN)🏷️  Tag $(TAG) created and pushed!$(RESET)"
 
 # ==================================================================================
-# DOCKER SUPPORT
-# ==================================================================================
-
-docker-build: ## Build Docker image
-	@echo "$(CYAN)🐳 Building Docker image...$(RESET)"
-	docker build -t govman:$(VERSION) -t govman:latest .
-	@echo "$(GREEN)🐳 Docker image built: govman:$(VERSION)$(RESET)"
-
-docker-run: docker-build ## Run in Docker container
-	@echo "$(CYAN)🐳 Running govman in Docker...$(RESET)"
-	docker run --rm -it govman:$(VERSION)
-
-docker-push: docker-build ## Push Docker image to registry
-	@echo "$(CYAN)🐳 Pushing Docker image...$(RESET)"
-	docker push govman:$(VERSION)
-	docker push govman:latest
-	@echo "$(GREEN)🐳 Docker image pushed!$(RESET)"
-
-# ==================================================================================
-# DOCUMENTATION AND GENERATION
-# ==================================================================================
-
-docs: ## Generate documentation
-	@echo "$(CYAN)📚 Generating documentation...$(RESET)"
-	@mkdir -p $(DOCS_DIR)
-	@if [ -f "$(MAIN_PACKAGE)/main.go" ]; then \
-		go run $(MAIN_PACKAGE) docs --output $(DOCS_DIR); \
-	fi
-	@echo "$(GREEN)📚 Documentation generated in $(DOCS_DIR)/$(RESET)"
-
-generate: ## Run go generate
-	@echo "$(CYAN)⚙️  Running go generate...$(RESET)"
-	go generate ./...
-	@echo "$(GREEN)⚙️  Generation completed!$(RESET)"
-
-generate-install-script: ## Generate installation script
-	@echo "$(CYAN)📜 Generating install script...$(RESET)"
-	@if [ -f "$(SCRIPTS_DIR)/generate-install.sh" ]; then \
-		$(SCRIPTS_DIR)/generate-install.sh; \
-	else \
-		echo "$(YELLOW)⚠️  Install script generator not found$(RESET)"; \
-	fi
-
-# ==================================================================================
 # UTILITIES
 # ==================================================================================
 
-version: ## Show version information
-	@echo "$(BOLD)$(CYAN)Build Information:$(RESET)"
-	@echo "  Version:   $(GREEN)$(VERSION)$(RESET)"
-	@echo "  Git Tag:   $(GREEN)$(GIT_TAG)$(RESET)"
-	@echo "  Commit:    $(GREEN)$(COMMIT)$(RESET)"
-	@echo "  Branch:    $(GREEN)$(BRANCH)$(RESET)"
-	@echo "  Date:      $(GREEN)$(DATE)$(RESET)"
-	@echo "  Built by:  $(GREEN)$(BUILD_BY)$(RESET)"
-	@echo "  Go:        $(GREEN)$(GO_VERSION)$(RESET)"
-	@echo "  Platform:  $(GREEN)$(GOOS)/$(GOARCH)$(RESET)"
+version: debug-version ## Show version information
+	@echo ""
+	@echo "$(BOLD)$(CYAN)Compiled Version Information:$(RESET)"
+	@if [ -f "$(BUILD_DIR)/$(BINARY_NAME)" ]; then \
+		echo "  From Binary: $(GREEN)$$($(BUILD_DIR)/$(BINARY_NAME) --version 2>/dev/null || echo 'N/A')$(RESET)"; \
+	else \
+		echo "  From Binary: $(YELLOW)No binary found - run 'make build' first$(RESET)"; \
+	fi
 
 info: version ## Show detailed build information
 	@echo ""
@@ -436,9 +433,6 @@ info: version ## Show detailed build information
 	@echo "$(BOLD)$(CYAN)Build Settings:$(RESET)"
 	@echo "  Tags:      $(GREEN)$(BUILD_TAGS)$(RESET)"
 	@echo "  LDFLAGS:   $(GREEN)$(LDFLAGS)$(RESET)"
-	@echo ""
-	@echo "$(BOLD)$(CYAN)Git Status:$(RESET)"
-	@echo "  Clean:     $(GREEN)$$(if [ -z '$$(git status --porcelain 2>/dev/null)' ]; then echo 'Yes'; else echo 'No'; fi)$(RESET)"
 
 clean: ## Clean build artifacts
 	@echo "$(CYAN)🧹 Cleaning up...$(RESET)"

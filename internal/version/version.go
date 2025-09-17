@@ -7,10 +7,11 @@ import (
 
 var (
 	// These will be set by ldflags during build
-	version = "dev"
-	commit  = "none"
-	date    = "unknown"
-	buildBy = "unknown"
+	// IMPORTANT: Must be exported (uppercase) to be set by linker
+	Version = "dev"
+	Commit  = "none"
+	Date    = "unknown"
+	BuildBy = "unknown"
 )
 
 // Info represents version information
@@ -26,10 +27,10 @@ type Info struct {
 // Get returns version information
 func Get() Info {
 	return Info{
-		Version:   version,
-		Commit:    commit,
-		Date:      date,
-		BuildBy:   buildBy,
+		Version:   Version,
+		Commit:    Commit,
+		Date:      Date,
+		BuildBy:   BuildBy,
 		GoVersion: runtime.Version(),
 		Platform:  fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH),
 	}
