@@ -61,10 +61,6 @@ func addCommands() {
 		newInitCmd(),
 		newCleanCmd(),
 		newSelfUpdateCmd(),
-		// newEnvCmd(),
-		// newAliasCmd(),
-		// newConfigCmd(),
-		// newCompletionCmd(),
 	)
 }
 

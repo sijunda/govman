@@ -402,6 +402,7 @@ update_path() {
             else
                 echo 'export PATH="$HOME/.govman/bin:$PATH"'
             fi
+            echo "# GOVMAN - Go Version Manager"
         } >> "$shell_rc"
         log_success "Shell environment configured"
     fi

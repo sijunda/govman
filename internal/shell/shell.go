@@ -183,6 +183,7 @@ func (s *BashShell) SetupCommands(binPath string) []string {
 		"",
 		"# Trigger auto-switch for current directory on shell startup",
 		"govman_auto_switch",
+		"# GOVMAN - Go Version Manager",
 	}
 }
 
@@ -250,6 +251,7 @@ func (s *ZshShell) SetupCommands(binPath string) []string {
 		"",
 		"# Trigger auto-switch for current directory on shell startup",
 		"govman_auto_switch",
+		"# GOVMAN - Go Version Manager",
 	}
 }
 
@@ -307,6 +309,7 @@ func (s *FishShell) SetupCommands(binPath string) []string {
 		"",
 		"# Trigger auto-switch for current directory on shell startup",
 		"govman_auto_switch",
+		"# GOVMAN - Go Version Manager",
 	}
 }
 
@@ -385,6 +388,7 @@ func (s *PowerShell) SetupCommands(binPath string) []string {
 		"",
 		"# Trigger auto-switch for current directory on startup",
 		"Set-GovmanAutoSwitch",
+		"# GOVMAN - Go Version Manager",
 	}
 }
 
