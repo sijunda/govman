@@ -1,12 +1,19 @@
 # Makefile for govman - Enhanced cross-platform build system
-.PHONY: build build-all build-archives test test-coverage test-integration test-benchmark clean lint fmt vet install dev-setup help deps check release docker version generate validate security
+.PHONY: build build-all build-binaries build-archives test test-coverage test-integration test-benchmark clean lint fmt vet install dev-setup help deps check release docker version generate validate security
 
 # ==================================================================================
 # BUILD CONFIGURATION
 # ==================================================================================
 
 # Version and build info
-VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+# Try to get exact tag first, fallback to git describe for development builds
+GIT_TAG ?= $(shell git describe --tags --exact-match 2>/dev/null)
+ifneq ($(GIT_TAG),)
+    VERSION ?= $(GIT_TAG)
+else
+    VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+endif
+
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "none")
 BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
 DATE ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -120,7 +127,7 @@ dev-setup: ## Set up development environment
 	@echo "$(YELLOW)🔧 Installing development tools...$(RESET)"
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	go install github.com/goreleaser/goreleaser@latest
-	go install github.com/securecodewarrior/github-action-add-sarif@latest
+	go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
 	go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
 	go install golang.org/x/tools/cmd/goimports@latest
 	go install honnef.co/go/tools/cmd/staticcheck@latest
@@ -234,8 +241,8 @@ build-debug: ## Build with debug information
 	CGO_ENABLED=1 go build -gcflags="all=-N -l" -tags=$(BUILD_TAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-debug $(MAIN_PACKAGE)
 	@echo "$(GREEN)✅ Debug build: $(BUILD_DIR)/$(BINARY_NAME)-debug$(RESET)"
 
-	@echo "$(GREEN)🎉 All builds completed! Check $(DIST_DIR)/$(RESET)"
-	@ls -la $(DIST_DIR)/
+# Added missing build-all target
+build-all: build-binaries ## Build binaries for all supported platforms (alias)
 
 build-binaries: ## Build binaries for all supported platforms
 	@echo "$(CYAN)🏗️  Building binaries for all platforms...$(RESET)"
@@ -251,7 +258,7 @@ build-binaries: ## Build binaries for all supported platforms
 		if [ "$$os" = "windows" ]; then binary_name=$$binary_name.exe; fi; \
 		echo "$(YELLOW)[$$current/$$total] Building for $$os/$$arch...$(RESET)"; \
 		if CGO_ENABLED=$(CGO_ENABLED) GOOS=$$os GOARCH=$$arch \
-			go build $(LDFLAGS) -tags=$(BUILD_TAGS) -o $(DIST_DIR)/$$binary_name $(MAIN_PACKAGE); then \
+			go build $(LDFLAGS) -tags=$(BUILD_TAGS) -o $(DIST_DIR)/$$binary_name $(MAIN_PACKAGE) 2>/dev/null; then \
 			echo "$(GREEN)✅ $$binary_name$(RESET)"; \
 		else \
 			echo "$(RED)❌ Failed to build for $$os/$$arch$(RESET)"; \
@@ -268,9 +275,17 @@ build-archives: build-all ## Build archives for distribution
 			platform=$$(echo $$binary | sed 's/govman-//; s/\.exe$$//'); \
 			echo "$(YELLOW)📦 Creating archive for $$platform...$(RESET)"; \
 			if echo "$$binary" | grep -q "windows"; then \
-				zip "$$platform.zip" "$$binary" ../README.md ../LICENSE 2>/dev/null || zip "$$platform.zip" "$$binary"; \
+				if [ -f "../README.md" ] && [ -f "../LICENSE" ]; then \
+					zip "$$platform.zip" "$$binary" ../README.md ../LICENSE; \
+				else \
+					zip "$$platform.zip" "$$binary"; \
+				fi; \
 			else \
-				tar -czf "$$platform.tar.gz" "$$binary" ../README.md ../LICENSE 2>/dev/null || tar -czf "$$platform.tar.gz" "$$binary"; \
+				if [ -f "../README.md" ] && [ -f "../LICENSE" ]; then \
+					tar -czf "$$platform.tar.gz" "$$binary" ../README.md ../LICENSE; \
+				else \
+					tar -czf "$$platform.tar.gz" "$$binary"; \
+				fi; \
 			fi; \
 		fi; \
 	done
@@ -300,7 +315,29 @@ uninstall: ## Uninstall from system
 # RELEASE MANAGEMENT
 # ==================================================================================
 
-release: ## Build release with goreleaser
+# ADDED: Pre-release checks to ensure clean state
+check-git-clean: ## Check if git working directory is clean
+	@echo "$(CYAN)🔍 Checking git status...$(RESET)"
+	@if [ -n "$$(git status --porcelain)" ]; then \
+		echo "$(RED)❌ Working directory is not clean. Please commit or stash changes.$(RESET)"; \
+		git status --short; \
+		exit 1; \
+	fi
+	@echo "$(GREEN)✅ Working directory is clean$(RESET)"
+
+check-git-tag: ## Check if current commit is tagged
+	@echo "$(CYAN)🏷️  Checking git tag...$(RESET)"
+	@if [ -z "$(GIT_TAG)" ]; then \
+		echo "$(RED)❌ Current commit is not tagged. Please create and push a tag first.$(RESET)"; \
+		echo "$(YELLOW)Example: make tag TAG=v1.0.0$(RESET)"; \
+		exit 1; \
+	fi
+	@echo "$(GREEN)✅ Current commit is tagged: $(GIT_TAG)$(RESET)"
+
+pre-release-checks: check-git-clean check-git-tag validate test ## Run all pre-release checks
+	@echo "$(GREEN)✅ All pre-release checks passed!$(RESET)"
+
+release: pre-release-checks ## Build release with goreleaser
 	@echo "$(CYAN)🚀 Building release...$(RESET)"
 	@if ! command -v goreleaser >/dev/null 2>&1; then \
 		echo "$(RED)❌ goreleaser not found. Install with: go install github.com/goreleaser/goreleaser@latest$(RESET)"; \
@@ -380,6 +417,7 @@ generate-install-script: ## Generate installation script
 version: ## Show version information
 	@echo "$(BOLD)$(CYAN)Build Information:$(RESET)"
 	@echo "  Version:   $(GREEN)$(VERSION)$(RESET)"
+	@echo "  Git Tag:   $(GREEN)$(GIT_TAG)$(RESET)"
 	@echo "  Commit:    $(GREEN)$(COMMIT)$(RESET)"
 	@echo "  Branch:    $(GREEN)$(BRANCH)$(RESET)"
 	@echo "  Date:      $(GREEN)$(DATE)$(RESET)"
@@ -398,6 +436,9 @@ info: version ## Show detailed build information
 	@echo "$(BOLD)$(CYAN)Build Settings:$(RESET)"
 	@echo "  Tags:      $(GREEN)$(BUILD_TAGS)$(RESET)"
 	@echo "  LDFLAGS:   $(GREEN)$(LDFLAGS)$(RESET)"
+	@echo ""
+	@echo "$(BOLD)$(CYAN)Git Status:$(RESET)"
+	@echo "  Clean:     $(GREEN)$$(if [ -z '$$(git status --porcelain 2>/dev/null)' ]; then echo 'Yes'; else echo 'No'; fi)$(RESET)"
 
 clean: ## Clean build artifacts
 	@echo "$(CYAN)🧹 Cleaning up...$(RESET)"
