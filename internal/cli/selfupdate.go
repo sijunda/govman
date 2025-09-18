@@ -189,6 +189,12 @@ func getLatestRelease(includePrerelease bool) (*GitHubRelease, error) {
 		if len(releases) == 0 {
 			return nil, fmt.Errorf("no releases found")
 		}
+		// Find the first prerelease or stable release
+		for _, release := range releases {
+			if includePrerelease || !release.Prerelease {
+				return &release, nil
+			}
+		}
 		return &releases[0], nil
 	}
 

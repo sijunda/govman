@@ -570,7 +570,7 @@ func removeExistingConfig(content string) string {
 			}
 
 			// End of govman section when we hit non-empty, non-govman content
-			if trimmed != "" && !strings.HasPrefix(trimmed, "#") {
+			if trimmed != "" && !strings.Contains(trimmed, "govman") && !strings.Contains(trimmed, "GOVMAN") {
 				inGovmanSection = false
 				skipEmptyLines = 0
 			}

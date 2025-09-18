@@ -1,4 +1,4 @@
-// internal/cli/install.go
+// internal/cli/installation.go
 package cli
 
 import (

@@ -21,7 +21,7 @@ COPY . .
 
 # Build binary with optimizations
 RUN CGO_ENABLED=0 GOOS=linux go build \
-    -ldflags="-s -w -X github.com/sijunda/govman/internal/version.version=docker" \
+    -ldflags="-s -w -X github.com/sijunda/govman/internal/version.Version=docker" \
     -a -installsuffix cgo \
     -o govman \
     ./cmd/govman
@@ -73,4 +73,4 @@ LABEL org.opencontainers.image.description="Cross-platform Go version manager"
 LABEL org.opencontainers.image.url="https://github.com/sijunda/govman"
 LABEL org.opencontainers.image.source="https://github.com/sijunda/govman"
 LABEL org.opencontainers.image.licenses="MIT"
-LABEL org.opencontainers.image.vendor="Your Name"
+LABEL org.opencontainers.image.vendor="sijunda"

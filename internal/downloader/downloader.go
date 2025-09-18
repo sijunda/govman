@@ -112,7 +112,7 @@ func (d *Downloader) downloadFile(url string, fileInfo *_golang.File) (string, e
 				continue
 			}
 			return "", fmt.Errorf("failed to download after %d attempts: %w",
-				d.config.Download.RetryCount, err)
+				attempt+1, err)
 		}
 		break
 	}
@@ -216,6 +216,13 @@ func (d *Downloader) extractTarGz(archivePath, installDir string) error {
 		}
 
 		targetPath := filepath.Join(installDir, path)
+		// Create parent directory only if it doesn't exist
+		parentDir := filepath.Dir(targetPath)
+		if _, err := os.Stat(parentDir); os.IsNotExist(err) {
+			if err := os.MkdirAll(parentDir, 0755); err != nil {
+				return fmt.Errorf("failed to create parent directory: %w", err)
+			}
+		}
 
 		// Create directory
 		if header.Typeflag == tar.TypeDir {
@@ -274,9 +281,12 @@ func (d *Downloader) extractZip(archivePath, installDir string) error {
 			continue
 		}
 
-		// Create parent directory
-		if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
-			return fmt.Errorf("failed to create parent directory: %w", err)
+		// Create parent directory only if it doesn't exist
+		parentDir := filepath.Dir(targetPath)
+		if _, err := os.Stat(parentDir); os.IsNotExist(err) {
+			if err := os.MkdirAll(parentDir, 0755); err != nil {
+				return fmt.Errorf("failed to create parent directory: %w", err)
+			}
 		}
 
 		// Extract file

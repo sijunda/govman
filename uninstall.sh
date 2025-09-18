@@ -204,6 +204,13 @@ remove_path_from_configs() {
                 local last_marker_line
                 first_marker_line=$(grep -n '^# GOVMAN - Go Version Manager' "$shell_rc" | head -1 | cut -d: -f1)
                 last_marker_line=$(grep -n '^# GOVMAN - Go Version Manager' "$shell_rc" | tail -1 | cut -d: -f1)
+                
+                # If we couldn't find the markers, skip this file
+                if [[ -z "$first_marker_line" || -z "$last_marker_line" ]]; then
+                    log_debug "Could not find GOVMAN markers in $shell_rc, skipping"
+                    rm -f "$temp_file"
+                    continue
+                fi
 
                 # Adjust start line to 1 line before
                 local start_line=$((first_marker_line - 1))

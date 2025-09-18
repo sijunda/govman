@@ -319,13 +319,17 @@ build-archives: build-all ## Build archives for distribution
 			platform=$$(echo $$binary | sed 's/govman-//; s/\.exe$$//'); \
 			echo "$(YELLOW)📦 Creating archive for $$platform...$(RESET)"; \
 			if echo "$$binary" | grep -q "windows"; then \
-				if [ -f "../README.md" ] && [ -f "../LICENSE" ]; then \
+				if [ -f "../README.md" ] && [ -f "../LICENSE.md" ]; then \
+					zip "$$platform.zip" "$$binary" ../README.md ../LICENSE.md; \
+				elif [ -f "../README.md" ] && [ -f "../LICENSE" ]; then \
 					zip "$$platform.zip" "$$binary" ../README.md ../LICENSE; \
 				else \
 					zip "$$platform.zip" "$$binary"; \
 				fi; \
 			else \
-				if [ -f "../README.md" ] && [ -f "../LICENSE" ]; then \
+				if [ -f "../README.md" ] && [ -f "../LICENSE.md" ]; then \
+					tar -czf "$$platform.tar.gz" "$$binary" ../README.md ../LICENSE.md; \
+				elif [ -f "../README.md" ] && [ -f "../LICENSE" ]; then \
 					tar -czf "$$platform.tar.gz" "$$binary" ../README.md ../LICENSE; \
 				else \
 					tar -czf "$$platform.tar.gz" "$$binary"; \

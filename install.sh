@@ -427,17 +427,14 @@ setup_shell_integration() {
         } &
         
         local pid=$!
-        if show_spinner $pid "Configuring shell integration"; then
-            local result
-            wait $pid
-            result=$(wait $pid 2>/dev/null && echo "success" || echo "failed")
-            
-            if [[ "$result" == "success" ]] || [[ $? -eq 0 ]]; then
-                log_success "Shell integration configured"
-            else
-                log_warning "Shell integration setup encountered issues"
-                log_info "You can run 'govman init' manually after restarting your shell"
-            fi
+        show_spinner $pid "Configuring shell integration"
+        local exit_code=$?
+        
+        if [[ $exit_code -eq 0 ]]; then
+            log_success "Shell integration configured"
+        else
+            log_warning "Shell integration setup encountered issues"
+            log_info "You can run 'govman init' manually after restarting your shell"
         fi
     else
         log_warning "govman not found in current PATH"

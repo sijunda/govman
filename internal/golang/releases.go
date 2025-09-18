@@ -12,7 +12,15 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
+)
+
+var (
+	releasesCache []Release
+	cacheMutex    sync.RWMutex
+	cacheExpiry   time.Time
+	cacheDuration = 10 * time.Minute
 )
 
 const (
@@ -201,7 +209,7 @@ func CompareVersions(v1, v2 string) int {
 // IsValidVersion checks if a version string is valid
 func IsValidVersion(version string) bool {
 	// Basic version pattern: x.y.z with optional pre-release
-	pattern := `^\d+\.\d+(\.\d+)?(rc\d+|beta\d+|alpha\d+)?$`
+	pattern := `^\d+\.\d+(?:\.\d+)?(?:-?(?:rc|beta|alpha)\d*)?$`
 	matched, _ := regexp.MatchString(pattern, version)
 	return matched
 }
@@ -215,7 +223,7 @@ func parseVersion(version string) versionParts {
 	var parts versionParts
 
 	// Extract pre-release suffix
-	re := regexp.MustCompile(`^(\d+\.\d+(?:\.\d+)?)-?(rc\d+|beta\d+|alpha\d+)?$`)
+	re := regexp.MustCompile(`^(\d+\.\d+(?:\.\d+)?)(?:-?(rc\d+|beta\d+|alpha\d+))?$`)
 	matches := re.FindStringSubmatch(version)
 
 	if len(matches) == 0 {
@@ -298,6 +306,15 @@ func extractPrereleaseNumber(prerelease string) int {
 }
 
 func fetchReleases() ([]Release, error) {
+	// Check cache first
+	cacheMutex.RLock()
+	if time.Now().Before(cacheExpiry) && releasesCache != nil {
+		defer cacheMutex.RUnlock()
+		return releasesCache, nil
+	}
+	cacheMutex.RUnlock()
+
+	// Fetch from API
 	resp, err := http.Get(GoReleasesAPI)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch releases: %w", err)
@@ -318,6 +335,12 @@ func fetchReleases() ([]Release, error) {
 		return nil, fmt.Errorf("failed to parse releases: %w", err)
 	}
 
+	// Update cache
+	cacheMutex.Lock()
+	releasesCache = releases
+	cacheExpiry = time.Now().Add(cacheDuration)
+	cacheMutex.Unlock()
+
 	return releases, nil
 }
 
@@ -335,4 +358,12 @@ func getDirSize(path string) (int64, error) {
 	})
 
 	return size, err
+}
+
+// ClearReleasesCache clears the releases cache
+func ClearReleasesCache() {
+	cacheMutex.Lock()
+	releasesCache = nil
+	cacheExpiry = time.Time{}
+	cacheMutex.Unlock()
 }

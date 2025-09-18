@@ -290,7 +290,8 @@ func (m *Manager) resolveVersion(version string) (string, error) {
 
 	// Check if it's a partial version like "1.24"
 	if strings.Count(version, ".") == 1 {
-		versions, err := m.ListRemote(true) // true to include unstable to match all possible versions
+		// Get all versions including unstable to have the complete set
+		versions, err := m.ListRemote(true) // true to include unstable versions
 		if err != nil {
 			return "", err
 		}
@@ -326,7 +327,6 @@ func (m *Manager) createSymlink(version string) error {
 	os.Remove(symlinkPath)
 
 	// Create new symlink
-	// Change targetDir to goExecutablePath
 	if err := _symlink.Create(goExecutablePath, symlinkPath); err != nil {
 		return fmt.Errorf("failed to create symlink: %w", err)
 	}
