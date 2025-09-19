@@ -41,7 +41,7 @@ func (m *Manager) Install(version string) error {
 	_logger.StopTimer(timer)
 
 	// Check if already installed
-	_logger.Step("Checking if version is already installed")
+	_logger.Verbose("Checking if version is already installed")
 	if m.IsInstalled(resolvedVersion) {
 		return fmt.Errorf("go version %s is already installed", resolvedVersion)
 	}
@@ -71,20 +71,20 @@ func (m *Manager) Install(version string) error {
 
 // Uninstall removes a Go version
 func (m *Manager) Uninstall(version string) error {
-	_logger.Step("Checking if version is installed")
+	_logger.Verbose("Checking if version is installed")
 	if !m.IsInstalled(version) {
 		return fmt.Errorf("go version %s is not installed", version)
 	}
 
 	// Check if it's the current version
-	_logger.Step("Checking if version is currently active")
+	_logger.Verbose("Checking if version is currently active")
 	current, err := m.Current()
 	if err == nil && current == version {
 		return fmt.Errorf("cannot uninstall currently active version %s", version)
 	}
 
 	installDir := m.config.GetVersionDir(version)
-	_logger.Info("Removing installation directory: %s", installDir)
+	_logger.Verbose("Removing installation directory: %s", installDir)
 	timer := _logger.StartTimer("uninstallation")
 	if err := os.RemoveAll(installDir); err != nil {
 		_logger.StopTimer(timer)
@@ -98,14 +98,14 @@ func (m *Manager) Uninstall(version string) error {
 
 // Use switches to a Go version
 func (m *Manager) Use(version string, setDefault, setLocal bool) error {
-	_logger.Step("Checking if version is installed")
+	_logger.Verbose("Checking if version is installed")
 	if !m.IsInstalled(version) {
 		return fmt.Errorf("go version %s is not installed. Run 'govman install %s' first", version, version)
 	}
 
 	// Set local version (project-specific)
 	if setLocal {
-		_logger.Step("Setting local version")
+		_logger.Verbose("Setting local version")
 		if err := m.setLocalVersion(version); err != nil {
 			return fmt.Errorf("failed to set local version: %w", err)
 		}
@@ -114,7 +114,7 @@ func (m *Manager) Use(version string, setDefault, setLocal bool) error {
 
 	// Set as default (persistent)
 	if setDefault {
-		_logger.Step("Creating symlink")
+		_logger.Verbose("Creating symlink")
 		timer := _logger.StartTimer("symlink creation")
 		if err := m.createSymlink(version); err != nil {
 			_logger.StopTimer(timer)
@@ -122,7 +122,7 @@ func (m *Manager) Use(version string, setDefault, setLocal bool) error {
 		}
 		_logger.StopTimer(timer)
 
-		_logger.Step("Setting as default version")
+		_logger.Verbose("Setting as default version")
 		m.config.DefaultVersion = version
 		timer = _logger.StartTimer("saving configuration")
 		if err := m.config.Save(); err != nil {

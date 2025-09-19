@@ -44,7 +44,7 @@ func newListCmd() *cobra.Command {
 }
 
 func listInstalledVersions(mgr *_manager.Manager) error {
-	_logger.Step("Retrieving installed versions")
+	_logger.Verbose("Retrieving installed versions")
 	versions, err := mgr.ListInstalled()
 	if err != nil {
 		_logger.ErrorWithHelp("Failed to list installed versions", "Check if the installation directory is accessible.", "")
@@ -84,7 +84,7 @@ func listInstalledVersions(mgr *_manager.Manager) error {
 }
 
 func listRemoteVersions(mgr *_manager.Manager, includeUnstable bool, pattern string) error {
-	_logger.Step("Retrieving remote versions")
+	_logger.Verbose("Retrieving remote versions")
 	versions, err := mgr.ListRemote(includeUnstable)
 	if err != nil {
 		_logger.ErrorWithHelp("Failed to list remote versions", "Check your internet connection and try again.", "")

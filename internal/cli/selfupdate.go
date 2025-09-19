@@ -60,7 +60,7 @@ Examples:
 func runSelfUpdate(checkOnly, force, prerelease bool) error {
 	_logger.Info("Checking for govman updates...")
 
-	_logger.Step("Retrieving latest release information")
+	_logger.Verbose("Retrieving latest release information")
 	latest, err := getLatestRelease(prerelease)
 	if err != nil {
 		_logger.ErrorWithHelp("Failed to check for updates", "Check your internet connection and try again.", "")
@@ -112,7 +112,7 @@ func runSelfUpdate(checkOnly, force, prerelease bool) error {
 	_logger.Download("Downloading %s...", latest.TagName)
 
 	// Download the binary
-	_logger.Step("Downloading binary")
+	_logger.Verbose("Downloading binary")
 	resp, err := http.Get(downloadURL)
 	if err != nil {
 		_logger.ErrorWithHelp("Failed to download binary", "Check your internet connection and try again.", "")
@@ -139,7 +139,7 @@ func runSelfUpdate(checkOnly, force, prerelease bool) error {
 	}
 
 	// Get the path of the current binary
-	_logger.Step("Getting current binary path")
+	_logger.Verbose("Getting current binary path")
 	currentBinary, err := os.Executable()
 	if err != nil {
 		_logger.ErrorWithHelp("Failed to get current binary path", "Check if the binary has proper permissions.", "")
@@ -147,7 +147,7 @@ func runSelfUpdate(checkOnly, force, prerelease bool) error {
 	}
 
 	// Rename the current binary to a backup
-	_logger.Step("Creating backup of current binary")
+	_logger.Verbose("Creating backup of current binary")
 	backupBinary := currentBinary + ".bak"
 	if err := os.Rename(currentBinary, backupBinary); err != nil {
 		_logger.ErrorWithHelp("Failed to create backup of current binary", "Check if you have permission to modify the binary directory.", "")
@@ -155,7 +155,7 @@ func runSelfUpdate(checkOnly, force, prerelease bool) error {
 	}
 
 	// Move the downloaded binary to the current binary path
-	_logger.Step("Installing new binary")
+	_logger.Verbose("Installing new binary")
 	if err := os.Rename(tempFile.Name(), currentBinary); err != nil {
 		// Restore the backup if the move fails
 		_logger.Warning("Failed to install new binary, restoring backup")
@@ -167,7 +167,7 @@ func runSelfUpdate(checkOnly, force, prerelease bool) error {
 	}
 
 	// Set the executable permission for the new binary
-	_logger.Step("Setting executable permissions")
+	_logger.Verbose("Setting executable permissions")
 	if err := os.Chmod(currentBinary, 0755); err != nil {
 		_logger.ErrorWithHelp("Failed to set executable permissions", "You may need to manually set executable permissions on the binary.", "")
 		return fmt.Errorf("failed to set executable permission for new binary: %w", err)

@@ -141,7 +141,7 @@ func (l *Logger) Progress(format string, args ...interface{}) {
 
 // Step logs a step in a process
 func (l *Logger) Step(format string, args ...interface{}) {
-	if l.level >= NormalLevel {
+	if l.level >= VerboseLevel {
 		fmt.Fprintf(l.writer, "📋 "+format+"\n", args...)
 	}
 }

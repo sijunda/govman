@@ -18,7 +18,7 @@ func newInfoCmd() *cobra.Command {
 			version := args[0]
 			mgr := _manager.New(getConfig())
 
-			_logger.Step("Retrieving version information")
+			_logger.Verbose("Retrieving version information")
 			info, err := mgr.Info(version)
 			if err != nil {
 				_logger.ErrorWithHelp("Failed to get information for Go version %s", "Make sure the version is installed. Use 'govman list' to see installed versions.", version)

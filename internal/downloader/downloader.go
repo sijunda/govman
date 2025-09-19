@@ -36,7 +36,7 @@ func New(cfg *_config.Config) *Downloader {
 // Download downloads and installs a Go version
 func (d *Downloader) Download(url, installDir, version string) error {
 	// Get file info for verification
-	_logger.Step("Retrieving file information")
+	_logger.Verbose("Retrieving file information")
 	timer := _logger.StartTimer("file info retrieval")
 	fileInfo, err := _golang.GetFileInfo(version)
 	if err != nil {
@@ -46,7 +46,7 @@ func (d *Downloader) Download(url, installDir, version string) error {
 	_logger.StopTimer(timer)
 
 	// Download file
-	_logger.Step("Downloading file")
+	_logger.Verbose("Downloading file")
 	archivePath, err := d.downloadFile(url, fileInfo)
 	if err != nil {
 		return fmt.Errorf("failed to download: %w", err)
@@ -54,7 +54,7 @@ func (d *Downloader) Download(url, installDir, version string) error {
 	defer os.Remove(archivePath) // Clean up downloaded file
 
 	// Verify checksum
-	_logger.Step("Verifying checksum")
+	_logger.Verbose("Verifying checksum")
 	timer = _logger.StartTimer("checksum verification")
 	if err := d.verifyChecksum(archivePath, fileInfo.Sha256); err != nil {
 		_logger.StopTimer(timer)
@@ -63,7 +63,7 @@ func (d *Downloader) Download(url, installDir, version string) error {
 	_logger.StopTimer(timer)
 
 	// Extract archive
-	_logger.Step("Extracting archive")
+	_logger.Verbose("Extracting archive")
 	timer = _logger.StartTimer("archive extraction")
 	if err := d.extractArchive(archivePath, installDir); err != nil {
 		_logger.StopTimer(timer)

@@ -17,7 +17,7 @@ func newCurrentCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			mgr := _manager.New(getConfig())
 
-			_logger.Step("Retrieving current version")
+			_logger.Verbose("Retrieving current version")
 			current, err := mgr.Current()
 			if err != nil {
 				_logger.ErrorWithHelp("No Go version is currently active", "Install and activate a Go version using 'govman install' and 'govman use'.", "")

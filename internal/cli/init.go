@@ -38,7 +38,7 @@ auto-switching based on .govman-version files.`,
 
 			_logger.Info("🔧 Initializing %s integration...", sh.Name())
 
-			_logger.Step("Setting up shell integration")
+			_logger.Verbose("Setting up shell integration")
 			if err := _shell.InitializeShell(sh, binPath, force); err != nil {
 				_logger.ErrorWithHelp("Failed to initialize shell integration", "Check if you have permission to modify your shell configuration file.", "")
 				return err
