@@ -1,4 +1,3 @@
-// internal/cli/selfupdate.go
 package cli
 
 import (
@@ -13,6 +12,7 @@ import (
 
 	cobra "github.com/spf13/cobra"
 
+	_logger "github.com/sijunda/govman/internal/logger"
 	_version "github.com/sijunda/govman/internal/version"
 )
 
@@ -58,32 +58,34 @@ Examples:
 }
 
 func runSelfUpdate(checkOnly, force, prerelease bool) error {
-	fmt.Println("Checking for govman updates...")
+	_logger.Info("Checking for govman updates...")
 
+	_logger.Step("Retrieving latest release information")
 	latest, err := getLatestRelease(prerelease)
 	if err != nil {
+		_logger.ErrorWithHelp("Failed to check for updates", "Check your internet connection and try again.", "")
 		return fmt.Errorf("failed to check for updates: %w", err)
 	}
 
 	current := _version.BuildVersion()
 	if current == "dev" {
-		fmt.Println("Development version detected, skipping update check")
+		_logger.Info("Development version detected, skipping update check")
 		return nil
 	}
 
-	fmt.Printf("Current version: %s\n", current)
-	fmt.Printf("Latest version:  %s\n", latest.TagName)
+	_logger.Info("Current version: %s", current)
+	_logger.Info("Latest version:  %s", latest.TagName)
 
 	if !force && latest.TagName == current {
-		fmt.Println("You are already using the latest version!")
+		_logger.Success("You are already using the latest version!")
 		return nil
 	}
 
 	if checkOnly {
 		if latest.TagName != current {
-			fmt.Printf("A new version is available: %s\n", latest.TagName)
+			_logger.Info("A new version is available: %s", latest.TagName)
 			if latest.Body != "" {
-				fmt.Printf("\nRelease notes:\n%s\n", latest.Body)
+				_logger.Info("\nRelease notes:\n%s", latest.Body)
 			}
 		}
 		return nil
@@ -107,11 +109,13 @@ func runSelfUpdate(checkOnly, force, prerelease bool) error {
 		return fmt.Errorf("no binary found for %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
 
-	fmt.Printf("Downloading %s...\n", latest.TagName)
+	_logger.Download("Downloading %s...", latest.TagName)
 
 	// Download the binary
+	_logger.Step("Downloading binary")
 	resp, err := http.Get(downloadURL)
 	if err != nil {
+		_logger.ErrorWithHelp("Failed to download binary", "Check your internet connection and try again.", "")
 		return fmt.Errorf("failed to download binary: %w", err)
 	}
 	defer resp.Body.Close()
@@ -135,32 +139,41 @@ func runSelfUpdate(checkOnly, force, prerelease bool) error {
 	}
 
 	// Get the path of the current binary
+	_logger.Step("Getting current binary path")
 	currentBinary, err := os.Executable()
 	if err != nil {
+		_logger.ErrorWithHelp("Failed to get current binary path", "Check if the binary has proper permissions.", "")
 		return fmt.Errorf("failed to get current binary path: %w", err)
 	}
 
 	// Rename the current binary to a backup
+	_logger.Step("Creating backup of current binary")
 	backupBinary := currentBinary + ".bak"
 	if err := os.Rename(currentBinary, backupBinary); err != nil {
+		_logger.ErrorWithHelp("Failed to create backup of current binary", "Check if you have permission to modify the binary directory.", "")
 		return fmt.Errorf("failed to rename current binary to backup: %w", err)
 	}
 
 	// Move the downloaded binary to the current binary path
+	_logger.Step("Installing new binary")
 	if err := os.Rename(tempFile.Name(), currentBinary); err != nil {
 		// Restore the backup if the move fails
+		_logger.Warning("Failed to install new binary, restoring backup")
 		if err := os.Rename(backupBinary, currentBinary); err != nil {
+			_logger.ErrorWithHelp("Failed to restore backup binary", "You may need to manually restore the binary from the backup file.", "")
 			return fmt.Errorf("failed to restore backup binary: %w", err)
 		}
 		return fmt.Errorf("failed to move downloaded binary to current binary path: %w", err)
 	}
 
 	// Set the executable permission for the new binary
+	_logger.Step("Setting executable permissions")
 	if err := os.Chmod(currentBinary, 0755); err != nil {
+		_logger.ErrorWithHelp("Failed to set executable permissions", "You may need to manually set executable permissions on the binary.", "")
 		return fmt.Errorf("failed to set executable permission for new binary: %w", err)
 	}
 
-	fmt.Println("Update completed successfully!")
+	_logger.Success("Update completed successfully!")
 	return nil
 }
 

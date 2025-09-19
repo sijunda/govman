@@ -5,6 +5,7 @@ import (
 
 	cobra "github.com/spf13/cobra"
 
+	_logger "github.com/sijunda/govman/internal/logger"
 	_shell "github.com/sijunda/govman/internal/shell"
 )
 
@@ -35,14 +36,16 @@ auto-switching based on .govman-version files.`,
 			cfg := getConfig()
 			binPath := cfg.GetBinPath()
 
-			fmt.Printf("🔧 Initializing %s integration...\n", sh.Name())
+			_logger.Info("🔧 Initializing %s integration...", sh.Name())
 
+			_logger.Step("Setting up shell integration")
 			if err := _shell.InitializeShell(sh, binPath, force); err != nil {
+				_logger.ErrorWithHelp("Failed to initialize shell integration", "Check if you have permission to modify your shell configuration file.", "")
 				return err
 			}
 
-			fmt.Printf("✅ Shell integration initialized!\n")
-			fmt.Printf("📝 Please restart your shell or run: source %s\n", sh.ConfigFile())
+			_logger.Success("Shell integration initialized!")
+			_logger.Info("📝 Please restart your shell or run: source %s", sh.ConfigFile())
 
 			return nil
 		},

@@ -6,6 +6,7 @@ import (
 
 	cobra "github.com/spf13/cobra"
 
+	_logger "github.com/sijunda/govman/internal/logger"
 	_manager "github.com/sijunda/govman/internal/manager"
 	_util "github.com/sijunda/govman/internal/util"
 )
@@ -43,20 +44,22 @@ func newListCmd() *cobra.Command {
 }
 
 func listInstalledVersions(mgr *_manager.Manager) error {
+	_logger.Step("Retrieving installed versions")
 	versions, err := mgr.ListInstalled()
 	if err != nil {
+		_logger.ErrorWithHelp("Failed to list installed versions", "Check if the installation directory is accessible.", "")
 		return fmt.Errorf("failed to list installed versions: %w", err)
 	}
 
 	if len(versions) == 0 {
-		fmt.Println("No Go versions installed")
-		fmt.Println("Run 'govman install latest' to install the latest version")
+		_logger.Info("No Go versions installed")
+		_logger.Info("Run 'govman install latest' to install the latest version")
 		return nil
 	}
 
 	current, _ := mgr.Current()
 
-	fmt.Println("Installed Go versions:")
+	_logger.Info("Installed Go versions:")
 	for _, version := range versions {
 		marker := "  "
 		if version == current {
@@ -65,24 +68,26 @@ func listInstalledVersions(mgr *_manager.Manager) error {
 
 		info, err := mgr.Info(version)
 		if err != nil {
-			fmt.Printf("%s%s (error getting info)\n", marker, version)
+			_logger.Info("%s%s (error getting info)", marker, version)
 			continue
 		}
 
 		size := _util.FormatBytes(info.Size)
-		fmt.Printf("%s%s (%s)\n", marker, version, size)
+		_logger.Info("%s%s (%s)", marker, version, size)
 	}
 
 	if current != "" {
-		fmt.Printf("\nCurrent: %s\n", current)
+		_logger.Info("\nCurrent: %s", current)
 	}
 
 	return nil
 }
 
 func listRemoteVersions(mgr *_manager.Manager, includeUnstable bool, pattern string) error {
+	_logger.Step("Retrieving remote versions")
 	versions, err := mgr.ListRemote(includeUnstable)
 	if err != nil {
+		_logger.ErrorWithHelp("Failed to list remote versions", "Check your internet connection and try again.", "")
 		return fmt.Errorf("failed to list remote versions: %w", err)
 	}
 
@@ -98,18 +103,18 @@ func listRemoteVersions(mgr *_manager.Manager, includeUnstable bool, pattern str
 	}
 
 	if len(versions) == 0 {
-		fmt.Println("No versions found")
+		_logger.Info("No versions found")
 		return nil
 	}
 
-	fmt.Println("Available Go versions:")
+	_logger.Info("Available Go versions:")
 	for _, version := range versions {
 		installed := mgr.IsInstalled(version)
 		marker := "  "
 		if installed {
 			marker = "✓ "
 		}
-		fmt.Printf("%s%s\n", marker, version)
+		_logger.Info("%s%s", marker, version)
 	}
 
 	return nil

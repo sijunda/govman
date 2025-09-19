@@ -10,6 +10,7 @@ import (
 	_config "github.com/sijunda/govman/internal/config"
 	_downloader "github.com/sijunda/govman/internal/downloader"
 	_golang "github.com/sijunda/govman/internal/golang"
+	_logger "github.com/sijunda/govman/internal/logger"
 	_shell "github.com/sijunda/govman/internal/shell"
 	_symlink "github.com/sijunda/govman/internal/symlink"
 )
@@ -31,83 +32,109 @@ func New(cfg *_config.Config) *Manager {
 // Install installs a Go version
 func (m *Manager) Install(version string) error {
 	// Resolve version (latest, etc.)
+	timer := _logger.StartTimer("version resolution")
 	resolvedVersion, err := m.resolveVersion(version)
 	if err != nil {
+		_logger.StopTimer(timer)
 		return fmt.Errorf("failed to resolve version %s: %w", version, err)
 	}
+	_logger.StopTimer(timer)
 
 	// Check if already installed
+	_logger.Step("Checking if version is already installed")
 	if m.IsInstalled(resolvedVersion) {
 		return fmt.Errorf("go version %s is already installed", resolvedVersion)
 	}
 
 	// Download and install
-	fmt.Printf("Installing Go %s...\n", resolvedVersion)
+	_logger.Info("Installing Go %s...", resolvedVersion)
 
+	timer = _logger.StartTimer("download URL retrieval")
 	downloadURL, err := _golang.GetDownloadURL(resolvedVersion)
 	if err != nil {
+		_logger.StopTimer(timer)
 		return fmt.Errorf("failed to get download URL: %w", err)
 	}
+	_logger.StopTimer(timer)
 
 	installDir := m.config.GetVersionDir(resolvedVersion)
+	timer = _logger.StartTimer("download and installation")
 	if err := m.downloader.Download(downloadURL, installDir, resolvedVersion); err != nil {
+		_logger.StopTimer(timer)
 		return fmt.Errorf("failed to download and install: %w", err)
 	}
+	_logger.StopTimer(timer)
 
-	fmt.Printf("✅ Go %s installed successfully\n", resolvedVersion)
+	_logger.Success("Go %s installed successfully", resolvedVersion)
 	return nil
 }
 
 // Uninstall removes a Go version
 func (m *Manager) Uninstall(version string) error {
+	_logger.Step("Checking if version is installed")
 	if !m.IsInstalled(version) {
 		return fmt.Errorf("go version %s is not installed", version)
 	}
 
 	// Check if it's the current version
+	_logger.Step("Checking if version is currently active")
 	current, err := m.Current()
 	if err == nil && current == version {
 		return fmt.Errorf("cannot uninstall currently active version %s", version)
 	}
 
 	installDir := m.config.GetVersionDir(version)
+	_logger.Info("Removing installation directory: %s", installDir)
+	timer := _logger.StartTimer("uninstallation")
 	if err := os.RemoveAll(installDir); err != nil {
+		_logger.StopTimer(timer)
 		return fmt.Errorf("failed to remove installation directory: %w", err)
 	}
+	_logger.StopTimer(timer)
 
-	fmt.Printf("✅ Go %s uninstalled successfully\n", version)
+	_logger.Success("Go %s uninstalled successfully", version)
 	return nil
 }
 
 // Use switches to a Go version
 func (m *Manager) Use(version string, setDefault, setLocal bool) error {
+	_logger.Step("Checking if version is installed")
 	if !m.IsInstalled(version) {
 		return fmt.Errorf("go version %s is not installed. Run 'govman install %s' first", version, version)
 	}
 
 	// Set local version (project-specific)
 	if setLocal {
+		_logger.Step("Setting local version")
 		if err := m.setLocalVersion(version); err != nil {
 			return fmt.Errorf("failed to set local version: %w", err)
 		}
-		fmt.Printf("✅ Set local Go version to %s\n", version)
+		_logger.Success("Set local Go version to %s", version)
 		return nil
 	}
 
 	// Create/update symlink
+	_logger.Step("Creating symlink")
+	timer := _logger.StartTimer("symlink creation")
 	if err := m.createSymlink(version); err != nil {
+		_logger.StopTimer(timer)
 		return fmt.Errorf("failed to create symlink: %w", err)
 	}
+	_logger.StopTimer(timer)
 
 	// Set as default if requested
 	if setDefault {
+		_logger.Step("Setting as default version")
 		m.config.DefaultVersion = version
+		timer = _logger.StartTimer("saving configuration")
 		if err := m.config.Save(); err != nil {
+			_logger.StopTimer(timer)
 			return fmt.Errorf("failed to save default version: %w", err)
 		}
-		fmt.Printf("✅ Set Go %s as default version\n", version)
+		_logger.StopTimer(timer)
+		_logger.Success("Set Go %s as default version", version)
 	} else {
-		fmt.Printf("✅ Now using Go %s\n", version)
+		_logger.Success("Now using Go %s", version)
 	}
 
 	return nil
@@ -271,7 +298,7 @@ func (m *Manager) Clean() error {
 		return fmt.Errorf("failed to recreate cache directory: %w", err)
 	}
 
-	fmt.Println("✅ Cache cleaned successfully")
+	_logger.Success("Cache cleaned successfully")
 	return nil
 }
 

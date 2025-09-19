@@ -3,6 +3,7 @@ package cli
 import (
 	cobra "github.com/spf13/cobra"
 
+	_logger "github.com/sijunda/govman/internal/logger"
 	_manager "github.com/sijunda/govman/internal/manager"
 )
 
@@ -26,7 +27,22 @@ Examples:
 			version := args[0]
 			mgr := _manager.New(getConfig())
 
-			return mgr.Use(version, setDefault, setLocal)
+			_logger.Info("🐹 Switching to Go %s...", version)
+			err := mgr.Use(version, setDefault, setLocal)
+			if err != nil {
+				_logger.ErrorWithHelp("Failed to switch to Go %s", "Make sure the version is installed. Use 'govman list' to see installed versions.", version)
+				return err
+			}
+
+			if setLocal {
+				_logger.Success("Set local Go version to %s", version)
+			} else if setDefault {
+				_logger.Success("Set Go %s as default version", version)
+			} else {
+				_logger.Success("Now using Go %s", version)
+			}
+
+			return nil
 		},
 	}
 

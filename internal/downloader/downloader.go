@@ -15,6 +15,7 @@ import (
 
 	_config "github.com/sijunda/govman/internal/config"
 	_golang "github.com/sijunda/govman/internal/golang"
+	_logger "github.com/sijunda/govman/internal/logger"
 	_progress "github.com/sijunda/govman/internal/progress"
 )
 
@@ -35,12 +36,17 @@ func New(cfg *_config.Config) *Downloader {
 // Download downloads and installs a Go version
 func (d *Downloader) Download(url, installDir, version string) error {
 	// Get file info for verification
+	_logger.Step("Retrieving file information")
+	timer := _logger.StartTimer("file info retrieval")
 	fileInfo, err := _golang.GetFileInfo(version)
 	if err != nil {
+		_logger.StopTimer(timer)
 		return fmt.Errorf("failed to get file info: %w", err)
 	}
+	_logger.StopTimer(timer)
 
 	// Download file
+	_logger.Step("Downloading file")
 	archivePath, err := d.downloadFile(url, fileInfo)
 	if err != nil {
 		return fmt.Errorf("failed to download: %w", err)
@@ -48,14 +54,22 @@ func (d *Downloader) Download(url, installDir, version string) error {
 	defer os.Remove(archivePath) // Clean up downloaded file
 
 	// Verify checksum
+	_logger.Step("Verifying checksum")
+	timer = _logger.StartTimer("checksum verification")
 	if err := d.verifyChecksum(archivePath, fileInfo.Sha256); err != nil {
+		_logger.StopTimer(timer)
 		return fmt.Errorf("checksum verification failed: %w", err)
 	}
+	_logger.StopTimer(timer)
 
 	// Extract archive
+	_logger.Step("Extracting archive")
+	timer = _logger.StartTimer("archive extraction")
 	if err := d.extractArchive(archivePath, installDir); err != nil {
+		_logger.StopTimer(timer)
 		return fmt.Errorf("failed to extract archive: %w", err)
 	}
+	_logger.StopTimer(timer)
 
 	return nil
 }
@@ -68,12 +82,12 @@ func (d *Downloader) downloadFile(url string, fileInfo *_golang.File) (string, e
 	// Check if file already exists and is complete
 	if stat, err := os.Stat(cachePath); err == nil {
 		if stat.Size() == fileInfo.Size {
-			fmt.Printf("✅ Using cached file: %s\n", filename)
+			_logger.Success("Using cached file: %s", filename)
 			return cachePath, nil
 		}
-		fmt.Printf("📦 Resuming download: %s\n", filename)
+		_logger.Download("Resuming download: %s", filename)
 	} else {
-		fmt.Printf("📦 Downloading: %s\n", filename)
+		_logger.Download("Downloading: %s", filename)
 	}
 
 	// Open cache file for writing (append mode for resume)
@@ -106,7 +120,7 @@ func (d *Downloader) downloadFile(url string, fileInfo *_golang.File) (string, e
 		resp, err = d.client.Do(req)
 		if err != nil {
 			if attempt < d.config.Download.RetryCount-1 {
-				fmt.Printf("⚠️  Download failed, retrying in 5 seconds... (%d/%d)\n",
+				_logger.Warning("Download failed, retrying in 5 seconds... (%d/%d)",
 					attempt+1, d.config.Download.RetryCount)
 				time.Sleep(5 * time.Second)
 				continue
@@ -144,7 +158,7 @@ func (d *Downloader) downloadFile(url string, fileInfo *_golang.File) (string, e
 }
 
 func (d *Downloader) verifyChecksum(filePath, expectedSHA256 string) error {
-	fmt.Printf("🔍 Verifying checksum...\n")
+	_logger.Verify("Verifying checksum...")
 
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -163,12 +177,12 @@ func (d *Downloader) verifyChecksum(filePath, expectedSHA256 string) error {
 			expectedSHA256, actualSHA256)
 	}
 
-	fmt.Printf("✅ Checksum verified\n")
+	_logger.Success("Checksum verified")
 	return nil
 }
 
 func (d *Downloader) extractArchive(archivePath, installDir string) error {
-	fmt.Printf("📂 Extracting archive...\n")
+	_logger.Extract("Extracting archive...")
 
 	// Create install directory
 	if err := os.MkdirAll(installDir, 0755); err != nil {

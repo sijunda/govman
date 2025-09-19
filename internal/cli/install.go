@@ -1,4 +1,3 @@
-// internal/cli/installation.go
 package cli
 
 import (
@@ -6,6 +5,7 @@ import (
 
 	cobra "github.com/spf13/cobra"
 
+	_logger "github.com/sijunda/govman/internal/logger"
 	_manager "github.com/sijunda/govman/internal/manager"
 )
 
@@ -26,7 +26,7 @@ Examples:
 
 			var errors []string
 			for _, version := range args {
-				fmt.Printf("\n📦 Installing Go %s...\n", version)
+				_logger.Info("📦 Installing Go %s...", version)
 				if err := mgr.Install(version); err != nil {
 					errors = append(errors, fmt.Sprintf("Go %s: %v", version, err))
 					continue
@@ -34,14 +34,14 @@ Examples:
 			}
 
 			if len(errors) > 0 {
-				fmt.Printf("\n❌ Some installations failed:\n")
+				_logger.ErrorWithHelp("Some installations failed:", "Check the errors above and try installing the versions individually.", "")
 				for _, err := range errors {
-					fmt.Printf("  • %s\n", err)
+					_logger.Info("  • %s", err)
 				}
 				return fmt.Errorf("failed to install %d version(s)", len(errors))
 			}
 
-			fmt.Printf("\n✅ All installations completed successfully!\n")
+			_logger.Success("All installations completed successfully!")
 			return nil
 		},
 	}
@@ -60,7 +60,14 @@ func newUninstallCmd() *cobra.Command {
 			version := args[0]
 			mgr := _manager.New(getConfig())
 
-			return mgr.Uninstall(version)
+			_logger.Info("🗑️  Uninstalling Go %s...", version)
+			err := mgr.Uninstall(version)
+			if err != nil {
+				_logger.ErrorWithHelp("Failed to uninstall Go %s", "Make sure the version is installed and not currently active.", version)
+				return err
+			}
+			_logger.Success("Go %s uninstalled successfully", version)
+			return nil
 		},
 	}
 
