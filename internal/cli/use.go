@@ -31,24 +31,25 @@ Examples:
 			version := args[0]
 			mgr := _manager.New(getConfig())
 
-			// Check if both flags are set (invalid)
-			if setDefault && setLocal {
-				_logger.ErrorWithHelp("Invalid flags", "Cannot use --default and --local together")
-				return fmt.Errorf("cannot use --default and --local flags together")
-			}
-
+			// The manager function will print the shell command to stdout for session-only use.
+			// We still want our logs to go to stderr.
 			_logger.Info("🐹 Switching to Go %s...", version)
-			
-			// For session-only usage (no flags), we handle it differently
-			if !setDefault && !setLocal {
-				return handleSessionOnlyUse(mgr, version)
-			}
 
-			// For persistent usage, use the existing logic
 			err := mgr.Use(version, setDefault, setLocal)
 			if err != nil {
-				_logger.ErrorWithHelp("Failed to switch to Go %s", "Make sure the version is installed. Use 'govman list' to see installed versions.", version)
+				// The error message from the manager is already quite descriptive.
+				_logger.Error("Failed to switch to Go %s: %v", version, err)
 				return err
+			}
+
+			if setLocal {
+				_logger.Success("Set local Go version to %s", version)
+			} else if setDefault {
+				_logger.Success("Set Go %s as default version", version)
+			} else {
+				// For session-only use, the manager has printed the necessary command to stdout.
+				// We add a confirmation message to stderr.
+				_logger.Success("Now using Go %s", version)
 			}
 
 			return nil

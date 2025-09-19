@@ -16,7 +16,6 @@ type Shell interface {
 	ConfigFile() string
 	PathCommand(path string) string
 	SetupCommands(binPath string) []string
-	CompletionCommand() string
 	IsAvailable() bool
 }
 
@@ -140,10 +139,6 @@ func (s *BashShell) PathCommand(path string) string {
 	return fmt.Sprintf(`export PATH="%s:$PATH"`, path)
 }
 
-func (s *BashShell) CompletionCommand() string {
-	return `eval "$(govman completion bash)"`
-}
-
 func (s *BashShell) SetupCommands(binPath string) []string {
 	return []string{
 		"",
@@ -151,12 +146,21 @@ func (s *BashShell) SetupCommands(binPath string) []string {
 		"# Added by govman installer",
 		s.PathCommand(binPath),
 		"",
+		"# Wrapper for govman command",
+		"govman() {",
+		"  if [ \"$1\" = \"use\" ] && [ \"$#\" -eq 2 ]; then",
+		"    eval \"$(command govman \"$@\" | grep '^export ')\"",
+		"  else",
+		"    command govman \"$@\"",
+		"  fi",
+		"}",
+		"",
 		"# Auto-switch Go version based on .govman-version file",
 		"govman_auto_switch() {",
 		"  if [ -f .govman-version ]; then",
-		"    local version=$(cat .govman-version 2>/dev/null | tr -d '\\n\\r')",
+		"    local version=$(cat .govman-version 2>/dev/null | tr -d '\n\r')",
 		"    if [ -n \"$version\" ]; then",
-		"      local current=$(govman current 2>/dev/null || echo \"none\")",
+		"      local current=$(command govman current 2>/dev/null || echo \"none\")",
 		"      if [ \"$current\" != \"$version\" ]; then",
 		"        echo \"🐹 Switching to Go $version (from .govman-version)\"",
 		"        govman use \"$version\"",
@@ -204,10 +208,6 @@ func (s *ZshShell) PathCommand(path string) string {
 	return fmt.Sprintf(`export PATH="%s:$PATH"`, path)
 }
 
-func (s *ZshShell) CompletionCommand() string {
-	return `eval "$(govman completion zsh)"`
-}
-
 func (s *ZshShell) SetupCommands(binPath string) []string {
 	return []string{
 		"",
@@ -216,17 +216,21 @@ func (s *ZshShell) SetupCommands(binPath string) []string {
 		"",
 		s.PathCommand(binPath),
 		"",
-		"# Initialize govman completion",
-		"if command -v govman >/dev/null 2>&1; then",
-		"  " + s.CompletionCommand(),
-		"fi",
+		"# Wrapper for govman command",
+		"govman() {",
+		"  if [[ \"$1\" == \"use\" && \"$#\" -eq 2 ]]; then",
+		"    eval \"$(command govman \"$@\" | grep '^export ')\"",
+		"  else",
+		"    command govman \"$@\"",
+		"  fi",
+		"}",
 		"",
 		"# Auto-switch Go version based on .govman-version file",
 		"govman_auto_switch() {",
 		"  if [[ -f .govman-version ]]; then",
-		"    local version=$(cat .govman-version 2>/dev/null | tr -d '\\n\\r')",
+		"    local version=$(cat .govman-version 2>/dev/null | tr -d '\n\r')",
 		"    if [[ -n \"$version\" ]]; then",
-		"      local current=$(govman current 2>/dev/null || echo \"none\")",
+		"      local current=$(command govman current 2>/dev/null || echo \"none\")",
 		"      if [[ \"$current\" != \"$version\" ]]; then",
 		"        echo \"🐹 Switching to Go $version (from .govman-version)\"",
 		"        govman use \"$version\"",
@@ -266,10 +270,6 @@ func (s *FishShell) PathCommand(path string) string {
 	return fmt.Sprintf(`set -gx PATH "%s" $PATH`, path)
 }
 
-func (s *FishShell) CompletionCommand() string {
-	return `govman completion fish | source`
-}
-
 func (s *FishShell) SetupCommands(binPath string) []string {
 	return []string{
 		"",
@@ -277,12 +277,21 @@ func (s *FishShell) SetupCommands(binPath string) []string {
 		"# Added by govman installer",
 		s.PathCommand(binPath),
 		"",
+		"# Wrapper for govman command",
+		"function govman --wraps govman",
+		"  if test \"$argv[1]\" = \"use\"; and test (count $argv) -eq 2",
+		"    command govman $argv | grep '^set ' | source",
+		"  else",
+		"    command govman $argv",
+		"  end",
+		"end",
+		"",
 		"# Auto-switch Go version based on .govman-version file",
 		"function govman_auto_switch --on-variable PWD --description 'Auto-switch Go version'",
 		"  if test -f .govman-version",
-		"    set version (cat .govman-version 2>/dev/null | tr -d '\\n\\r')",
+		"    set version (cat .govman-version 2>/dev/null | tr -d '\n\r')",
 		"    if test -n \"$version\"",
-		"      set current (govman current 2>/dev/null; or echo \"none\")",
+		"      set current (command govman current 2>/dev/null; or echo \"none\")",
 		"      if test \"$current\" != \"$version\"",
 		"        echo \"🐹 Switching to Go $version (from .govman-version)\"",
 		"        govman use \"$version\"",
@@ -319,10 +328,6 @@ func (s *PowerShell) PathCommand(path string) string {
 	return fmt.Sprintf(`$env:PATH = "%s;" + $env:PATH`, path)
 }
 
-func (s *PowerShell) CompletionCommand() string {
-	return `govman completion powershell | Out-String | Invoke-Expression`
-}
-
 func (s *PowerShell) SetupCommands(binPath string) []string {
 	return []string{
 		"",
@@ -330,13 +335,23 @@ func (s *PowerShell) SetupCommands(binPath string) []string {
 		"# Added by govman installer",
 		s.PathCommand(binPath),
 		"",
+		"# Wrapper for govman command",
+		"function govman {",
+		"  param($command, [Parameter(ValueFromRemainingArguments=$true)]$arguments)",
+		"  if ($command -eq 'use' -and $arguments.Length -eq 1 -and $arguments[0] -notlike '-*') {",
+		"    & govman.exe $command $arguments | Where-Object { $_ -like '$env:PATH*' } | Out-String | Invoke-Expression",
+		"  } else {",
+		"    & govman.exe $command $arguments",
+		"  }",
+		"}",
+		"",
 		"# Auto-switch Go version based on .govman-version file",
 		"function Set-GovmanAutoSwitch {",
 		"  if (Test-Path .govman-version) {",
 		"    try {",
 		"      $version = (Get-Content .govman-version -ErrorAction Stop).Trim()",
 		"      if ($version) {",
-		"        $current = try { govman current 2>$null } catch { \"none\" }",
+		"        $current = try { & govman.exe current 2>$null } catch { \"none\" }",
 		"        if ($current -ne $version) {",
 		"          Write-Host \"🐹 Switching to Go $version (from .govman-version)\" -ForegroundColor Green",
 		"          govman use $version",
@@ -390,10 +405,6 @@ func (s *CmdShell) ConfigFile() string {
 
 func (s *CmdShell) PathCommand(path string) string {
 	return fmt.Sprintf(`set PATH=%s;%%PATH%%`, path)
-}
-
-func (s *CmdShell) CompletionCommand() string {
-	return "REM Completion not supported in CMD"
 }
 
 func (s *CmdShell) SetupCommands(binPath string) []string {

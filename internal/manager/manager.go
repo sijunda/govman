@@ -109,21 +109,19 @@ func (m *Manager) Use(version string, setDefault, setLocal bool) error {
 		if err := m.setLocalVersion(version); err != nil {
 			return fmt.Errorf("failed to set local version: %w", err)
 		}
-		_logger.Success("Set local Go version to %s", version)
 		return nil
 	}
 
-	// Create/update symlink
-	_logger.Step("Creating symlink")
-	timer := _logger.StartTimer("symlink creation")
-	if err := m.createSymlink(version); err != nil {
-		_logger.StopTimer(timer)
-		return fmt.Errorf("failed to create symlink: %w", err)
-	}
-	_logger.StopTimer(timer)
-
-	// Set as default if requested
+	// Set as default (persistent)
 	if setDefault {
+		_logger.Step("Creating symlink")
+		timer := _logger.StartTimer("symlink creation")
+		if err := m.createSymlink(version); err != nil {
+			_logger.StopTimer(timer)
+			return fmt.Errorf("failed to create symlink: %w", err)
+		}
+		_logger.StopTimer(timer)
+
 		_logger.Step("Setting as default version")
 		m.config.DefaultVersion = version
 		timer = _logger.StartTimer("saving configuration")
@@ -132,10 +130,12 @@ func (m *Manager) Use(version string, setDefault, setLocal bool) error {
 			return fmt.Errorf("failed to save default version: %w", err)
 		}
 		_logger.StopTimer(timer)
-		_logger.Success("Set Go %s as default version", version)
-	} else {
-		_logger.Success("Now using Go %s", version)
+		return nil
 	}
+
+	// Session-only use: print export command to stdout
+	versionBinPath := filepath.Join(m.config.GetVersionDir(version), "bin")
+	fmt.Println(m.shell.PathCommand(versionBinPath))
 
 	return nil
 }

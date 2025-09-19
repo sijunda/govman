@@ -39,7 +39,7 @@ type Timer struct {
 // New creates a new Logger instance
 func New() *Logger {
 	l := &Logger{
-		writer: os.Stdout,
+		writer: os.stderr,
 	}
 
 	// Set log level based on flags
