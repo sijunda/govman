@@ -38,8 +38,6 @@ Examples:
 				_logger.Success("Set local Go version to %s", version)
 			} else if setDefault {
 				_logger.Success("Set Go %s as default version", version)
-			} else {
-				_logger.Success("Now using Go %s", version)
 			}
 
 			return nil
