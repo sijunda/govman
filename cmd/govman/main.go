@@ -1,4 +1,3 @@
-// cmd/govman/main.go
 package main
 
 import (

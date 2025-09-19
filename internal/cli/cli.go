@@ -2,9 +2,9 @@ package cli
 
 import (
 	"fmt"
+	"strings"
 
 	cobra "github.com/spf13/cobra"
-	viper "github.com/spf13/viper"
 
 	_config "github.com/sijunda/govman/internal/config"
 	_version "github.com/sijunda/govman/internal/version"
@@ -16,52 +16,64 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "govman",
-	Short: "Go Version Manager - Install and manage multiple Go versions",
-	Long: `GOVMAN is a cross-platform Go version manager that allows you to 
-install, manage, and switch between multiple Go versions effortlessly.
-
-Features:
-• Install and switch between multiple Go versions
-• Project-specific version support via .govman-version
-• Cross-platform support (Windows, macOS, Linux)
-• Automatic shell integration
-• Fast parallel downloads with resume capability
-• Package manager integration`,
+	Use:     "govman",
+	Short:   "🚀 Go Version Manager - Install and manage multiple Go versions",
+	Long:    createLongDescription(),
 	Version: _version.BuildVersion(),
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		return initConfig()
 	},
 }
 
+func createLongDescription() string {
+	features := []string{
+		"⚡ Lightning-fast installation and switching between Go versions",
+		"🎯 Zero configuration - works out of the box, no setup required",
+		"📁 Project-specific versions with .go-version file support",
+		"🚫 No admin/sudo required - fully userspace installation",
+		"💾 Intelligent caching with offline mode support",
+		"📦 Parallel downloads with automatic resume on failure",
+		"🌍 Cross-platform support (Windows, macOS, Linux, ARM)",
+		"🧹 Built-in cleanup tools to manage disk space efficiently",
+	}
+
+	var sb strings.Builder
+	sb.WriteString("\n🎯 Key Features:\n")
+	for _, feature := range features {
+		sb.WriteString(fmt.Sprintf("  %s\n", feature))
+	}
+	return sb.String()
+}
+
 func Execute() error {
+	showBanner()
 	return rootCmd.Execute()
 }
 
-func init() {
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.govman/config.yaml)")
-	rootCmd.PersistentFlags().Bool("verbose", false, "verbose output")
-	rootCmd.PersistentFlags().Bool("quiet", false, "quiet output (errors only)")
+func showBanner() {
+	fmt.Println()
+	banner := `
+	 ██████╗  ██████╗ ██╗   ██╗███╗   ███╗ █████╗ ███╗   ██╗
+	██╔════╝ ██╔═══██╗██║   ██║████╗ ████║██╔══██╗████╗  ██║
+	██║  ███╗██║   ██║██║   ██║██╔████╔██║███████║██╔██╗ ██║
+	██║   ██║██║   ██║╚██╗ ██╔╝██║╚██╔╝██║██╔══██║██║╚██╗██║
+	╚██████╔╝╚██████╔╝ ╚████╔╝ ██║ ╚═╝ ██║██║  ██║██║ ╚████║
+	 ╚═════╝  ╚═════╝   ╚═══╝  ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝`
 
-	viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose"))
-	viper.BindPFlag("quiet", rootCmd.PersistentFlags().Lookup("quiet"))
+	lines := strings.Split(banner, "\n")
 
-	// Add subcommands
-	addCommands()
-}
-
-func addCommands() {
-	rootCmd.AddCommand(
-		newInstallCmd(),
-		newListCmd(),
-		newUseCmd(),
-		newUninstallCmd(),
-		newCurrentCmd(),
-		newInfoCmd(),
-		newInitCmd(),
-		newCleanCmd(),
-		newSelfUpdateCmd(),
+	const (
+		color = "\033[38;5;75m"
+		bold  = "\033[1m"
+		reset = "\033[0m"
 	)
+
+	for _, line := range lines {
+		if strings.TrimSpace(line) != "" {
+			fmt.Println(color + bold + line + reset)
+		}
+	}
+	fmt.Println()
 }
 
 func initConfig() error {

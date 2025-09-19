@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"fmt"
+
 	cobra "github.com/spf13/cobra"
 
 	_logger "github.com/sijunda/govman/internal/logger"
@@ -18,8 +20,8 @@ func newCurrentCmd() *cobra.Command {
 			_logger.Step("Retrieving current version")
 			current, err := mgr.Current()
 			if err != nil {
-				_logger.Info("No Go version is currently active")
-				return nil
+				_logger.ErrorWithHelp("No Go version is currently active", "Install and activate a Go version using 'govman install' and 'govman use'.", "")
+				return fmt.Errorf("no Go version is currently active")
 			}
 
 			_logger.Info("Current Go version: %s", current)
