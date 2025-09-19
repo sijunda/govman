@@ -98,43 +98,23 @@ func (m *Manager) Uninstall(version string) error {
 
 // Use switches to a Go version
 func (m *Manager) Use(version string, setDefault, setLocal bool) error {
-	return m.UseWithOptions(version, setDefault, setLocal, true)
-}
-
-// UseWithOptions switches to a Go version with option to suppress logging
-func (m *Manager) UseWithOptions(version string, setDefault, setLocal, logOutput bool) error {
-	if logOutput {
-		_logger.Step("Checking if version is installed")
-	}
+	_logger.Step("Checking if version is installed")
 	if !m.IsInstalled(version) {
 		return fmt.Errorf("go version %s is not installed. Run 'govman install %s' first", version, version)
 	}
 
 	// Set local version (project-specific)
 	if setLocal {
-		if logOutput {
-			_logger.Step("Setting local version")
-		}
+		_logger.Step("Setting local version")
 		if err := m.setLocalVersion(version); err != nil {
 			return fmt.Errorf("failed to set local version: %w", err)
 		}
-		if logOutput {
-			_logger.Success("Set local Go version to %s", version)
-		}
+		_logger.Success("Set local Go version to %s", version)
 		return nil
 	}
 
-	// For session-only changes (no flags), we don't create a symlink
-	// The shell will need to modify PATH directly for this session
-	if !setDefault {
-		// Don't create symlink for session-only changes
-		return nil
-	}
-
-	// Create/update symlink for default version
-	if logOutput {
-		_logger.Step("Creating symlink")
-	}
+	// Create/update symlink
+	_logger.Step("Creating symlink")
 	timer := _logger.StartTimer("symlink creation")
 	if err := m.createSymlink(version); err != nil {
 		_logger.StopTimer(timer)
@@ -142,19 +122,19 @@ func (m *Manager) UseWithOptions(version string, setDefault, setLocal, logOutput
 	}
 	_logger.StopTimer(timer)
 
-	// Set as default
-	if logOutput {
+	// Set as default if requested
+	if setDefault {
 		_logger.Step("Setting as default version")
-	}
-	m.config.DefaultVersion = version
-	timer = _logger.StartTimer("saving configuration")
-	if err := m.config.Save(); err != nil {
+		m.config.DefaultVersion = version
+		timer = _logger.StartTimer("saving configuration")
+		if err := m.config.Save(); err != nil {
+			_logger.StopTimer(timer)
+			return fmt.Errorf("failed to save default version: %w", err)
+		}
 		_logger.StopTimer(timer)
-		return fmt.Errorf("failed to save default version: %w", err)
-	}
-	_logger.StopTimer(timer)
-	if logOutput {
 		_logger.Success("Set Go %s as default version", version)
+	} else {
+		_logger.Success("Now using Go %s", version)
 	}
 
 	return nil
@@ -173,13 +153,7 @@ func (m *Manager) Current() (string, error) {
 		return localVersion, nil
 	}
 
-	// If no local version, check for global version
-	if globalVersion, err := m.CurrentGlobal(); err == nil {
-		return globalVersion, nil
-	}
-
-	// No active version
-	return "", fmt.Errorf("no Go version is currently active")
+	return m.CurrentGlobal()
 }
 
 // CurrentGlobal returns the globally active Go version from the symlink

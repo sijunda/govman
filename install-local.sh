@@ -1,6 +1,6 @@
 #!/bin/bash
 # GOVMAN Installation Script for Unix-like systems
-# Usage: curl -sSL https://raw.githubusercontent.com/sijunda/govman/main/install.sh | bash
+# Usage: curl -sSL https://raw.githubusercontent.com/justjundana/govman/main/install.sh | bash
 
 set -e
 
@@ -15,7 +15,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Constants
-REPO="sijunda/govman"
+REPO="justjundana/govman"
 GITHUB_API_URL="https://api.github.com/repos/$REPO/releases/latest"
 GITHUB_DOWNLOAD_URL="https://github.com/$REPO/releases/download"
 INSTALL_DIR="$HOME/.govman"

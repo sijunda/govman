@@ -13,12 +13,13 @@ func init() {
 	// Add subcommands
 	addCommands()
 
-	// // Remove default `completion` command
-	// rootCmd.CompletionOptions.DisableDefaultCmd = true
+	// Remove default `completion` command
+	rootCmd.CompletionOptions.DisableDefaultCmd = true
 }
 
 func addCommands() {
 	rootCmd.AddCommand(
+		newInitCmd(),
 		newInstallCmd(),
 		newUninstallCmd(),
 		newUseCmd(),
