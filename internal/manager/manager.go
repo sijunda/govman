@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 
@@ -153,7 +154,12 @@ func (m *Manager) Current() (string, error) {
 		return localVersion, nil
 	}
 
-	return m.CurrentGlobal()
+	version, err := m.CurrentGlobal()
+	if err != nil {
+		return "", err
+	}
+
+	return version, nil
 }
 
 // CurrentGlobal returns the globally active Go version from the symlink
@@ -227,6 +233,10 @@ func (m *Manager) CurrentGlobal() (string, error) {
 
 	// Verify the actual Go executable exists and is functional
 	goExecutable := filepath.Join(expectedVersionDir, "bin", "go")
+	// On Windows, the executable has a .exe extension
+	if runtime.GOOS == "windows" {
+		goExecutable += ".exe"
+	}
 	if _, err := os.Stat(goExecutable); err != nil {
 		if os.IsNotExist(err) {
 			return "", fmt.Errorf("Go %s installation appears corrupted - executable not found at %s. Try reinstalling with 'govman install %s'",
@@ -342,7 +352,17 @@ func (m *Manager) createSymlink(version string) error {
 	// The actual Go executable is inside the 'bin' directory within the version's root
 	goExecutablePath := filepath.Join(versionRoot, "bin", "go")
 
+	// On Windows, the executable has a .exe extension
+	if runtime.GOOS == "windows" {
+		goExecutablePath += ".exe"
+	}
+
 	symlinkPath := m.config.GetCurrentSymlink() // This gets the path to the symlink (e.g., /Users/sijunda/.govman/bin/go)
+
+	// On Windows, the symlink should also have a .exe extension
+	if runtime.GOOS == "windows" {
+		symlinkPath += ".exe"
+	}
 
 	// Create bin directory if it doesn't exist
 	binDir := m.config.GetBinPath()
