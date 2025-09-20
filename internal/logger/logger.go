@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/spf13/viper"
+	viper "github.com/spf13/viper"
 )
 
 // LogLevel represents the verbosity level of log messages

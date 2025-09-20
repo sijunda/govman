@@ -5,6 +5,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	util "github.com/sijunda/govman/internal/util"
 )
 
 type ProgressBar struct {
@@ -94,18 +96,18 @@ func (pb *ProgressBar) render() {
 
 	if elapsed.Seconds() > 1 {
 		speed := float64(pb.current) / elapsed.Seconds()
-		speedStr = formatBytes(int64(speed)) + "/s"
+		speedStr = util.FormatBytes(int64(speed)) + "/s"
 
 		if speed > 0 && pb.current < pb.total {
 			remaining := pb.total - pb.current
 			eta := time.Duration(float64(remaining)/speed) * time.Second
-			etaStr = formatDuration(eta)
+			etaStr = util.FormatDuration(eta)
 		}
 	}
 
 	// Format sizes
-	currentStr := formatBytes(pb.current)
-	totalStr := formatBytes(pb.total)
+	currentStr := util.FormatBytes(pb.current)
+	totalStr := util.FormatBytes(pb.total)
 
 	// Build status line
 	status := fmt.Sprintf("\r%s [%s] %.1f%% (%s/%s)",
@@ -123,28 +125,6 @@ func (pb *ProgressBar) render() {
 	status = fmt.Sprintf("%-80s", status)
 
 	fmt.Print(status)
-}
-
-func formatBytes(bytes int64) string {
-	const unit = 1024
-	if bytes < unit {
-		return fmt.Sprintf("%d B", bytes)
-	}
-	div, exp := int64(unit), 0
-	for n := bytes / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
-	}
-	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
-}
-
-func formatDuration(d time.Duration) string {
-	if d < time.Minute {
-		return fmt.Sprintf("%ds", int(d.Seconds()))
-	} else if d < time.Hour {
-		return fmt.Sprintf("%dm%ds", int(d.Minutes()), int(d.Seconds())%60)
-	}
-	return fmt.Sprintf("%dh%dm", int(d.Hours()), int(d.Minutes())%60)
 }
 
 // MultiProgress handles multiple progress bars
