@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	cobra "github.com/spf13/cobra"
@@ -45,8 +46,13 @@ func createLongDescription() string {
 	return sb.String()
 }
 
+// Execute runs the root command and shows a banner when no arguments are provided.
 func Execute() error {
-	showBanner()
+	// Show banner only when no subcommands or arguments are provided
+	// os.Args[0] is always the program name, so we check if there's only that element
+	if len(os.Args) <= 1 {
+		showBanner()
+	}
 	return rootCmd.Execute()
 }
 
