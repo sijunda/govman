@@ -34,6 +34,79 @@ is_windows() {
     [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]
 }
 
+# Detect current shell and return appropriate config file
+detect_shell_config() {
+    local shell_name=""
+    local config_file=""
+    
+    # Get the current shell
+    if [ -n "$BASH_VERSION" ]; then
+        shell_name="bash"
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            # macOS uses .bash_profile by default
+            config_file="~/.bash_profile"
+        else
+            config_file="~/.bashrc"
+        fi
+    elif [ -n "$ZSH_VERSION" ]; then
+        shell_name="zsh"
+        config_file="~/.zshrc"
+    elif [ -n "$FISH_VERSION" ]; then
+        shell_name="fish"
+        config_file="~/.config/fish/config.fish"
+    else
+        # Try to detect from $SHELL environment variable
+        case "$(basename "$SHELL")" in
+            bash)
+                shell_name="bash"
+                if [[ "$OSTYPE" == "darwin"* ]]; then
+                    config_file="~/.bash_profile"
+                else
+                    config_file="~/.bashrc"
+                fi
+                ;;
+            zsh)
+                shell_name="zsh"
+                config_file="~/.zshrc"
+                ;;
+            fish)
+                shell_name="fish"
+                config_file="~/.config/fish/config.fish"
+                ;;
+            *)
+                shell_name="shell"
+                config_file="your shell's configuration file"
+                ;;
+        esac
+    fi
+    
+    echo "${shell_name}:${config_file}"
+}
+
+# Get restart instruction based on OS and shell
+get_restart_instruction() {
+    local shell_info
+    shell_info=$(detect_shell_config)
+    local shell_name=$(echo "$shell_info" | cut -d':' -f1)
+    local config_file=$(echo "$shell_info" | cut -d':' -f2)
+    
+    if is_windows; then
+        echo "Please restart your terminal or PowerShell window"
+    else
+        case "$shell_name" in
+            bash|zsh)
+                echo "Please restart your terminal or run 'source $config_file'"
+                ;;
+            fish)
+                echo "Please restart your terminal or run 'source $config_file'"
+                ;;
+            *)
+                echo "Please restart your terminal or reload your shell configuration"
+                ;;
+        esac
+    fi
+}
+
 # Detect OS and architecture
 detect_platform() {
     local os=""
@@ -189,7 +262,12 @@ main() {
     print_info "Verifying installation..."
     if "$install_dir/govman" --version >/dev/null 2>&1; then
         print_success "govman installed successfully!"
-        print_info "Please restart your terminal or run 'source ~/.bashrc' (or the appropriate config file for your shell)"
+        
+        # Dynamic restart instruction
+        local restart_instruction
+        restart_instruction=$(get_restart_instruction)
+        print_info "$restart_instruction"
+        
         print_info "Then you can use 'govman --help' to get started"
     else
         print_warning "Installation completed, but verification failed"

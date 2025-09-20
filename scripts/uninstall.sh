@@ -29,6 +29,29 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+# Function to get user input that works with piped scripts
+get_user_input() {
+    local prompt="$1"
+    local response=""
+    
+    # Try to read from /dev/tty if available (works when script is piped)
+    if [[ -t 0 ]] || [[ -r /dev/tty ]]; then
+        if [[ -r /dev/tty ]]; then
+            printf "%s" "$prompt" > /dev/tty
+            read -n 1 -r response < /dev/tty
+        else
+            read -p "$prompt" -n 1 -r response
+        fi
+        echo "" >&2 # New line after input to stderr so it doesn't affect return value
+    else
+        # Fallback: assume 'no' if no interactive terminal available
+        print_warning "No interactive terminal detected. Assuming 'N' (no)."
+        response="N"
+    fi
+    
+    echo "$response"
+}
+
 # Remove binary
 remove_binary() {
     local install_dir="$HOME/.govman/bin"
@@ -92,9 +115,10 @@ main() {
 
     # First, confirm the user wants to uninstall
     print_warning "This will remove the govman binary and its configuration from your shell."
-    read -p "Are you sure you want to uninstall govman? (y/N): " -n 1 -r
-    echo ""
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    local response
+    response=$(get_user_input "Are you sure you want to uninstall govman? (y/N): ")
+    
+    if [[ ! "$response" =~ ^[Yy]$ ]]; then
         print_info "Uninstallation cancelled."
         exit 0
     fi
@@ -107,9 +131,9 @@ main() {
     echo ""
     print_warning "Do you also want to remove the entire govman data directory?"
     print_warning "This will delete all downloaded Go versions and cannot be undone."
-    read -p "Remove data directory ($HOME/.govman)? (y/N): " -n 1 -r
-    echo ""
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
+    response=$(get_user_input "Remove data directory ($HOME/.govman)? (y/N): ")
+    
+    if [[ "$response" =~ ^[Yy]$ ]]; then
         remove_govman_dir
         print_success "govman was completely uninstalled."
     else
