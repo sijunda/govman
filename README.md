@@ -17,20 +17,10 @@ The project is written in **Go** and leverages popular Go libraries such as **Co
 The easiest way to install `govman` on Unix-like systems (Linux, macOS, FreeBSD) is by using the provided `install.sh` script:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/sijunda/govman/main/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/sijunda/govman/main/scripts/install.sh | bash
 ```
 
 This script will download the latest stable release of `govman` for your system, install it to `$HOME/.govman/bin`, and add it to your shell's `PATH`.
-
-## Local Installation
-
-For developers or users who want to build and install `govman` from local source code, you can use the `install-local.sh` script:
-
-```bash
-curl -sSL https://raw.githubusercontent.com/sijunda/govman/main/scripts/install-local.sh | bash
-```
-
-This script will build `govman` from the local source code and install it to `$HOME/.govman/bin`. Note that this requires Go to be installed on your system.
 
 ## Uninstallation
 
