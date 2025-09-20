@@ -22,6 +22,26 @@ curl -sSL https://raw.githubusercontent.com/sijunda/govman/main/install.sh | bas
 
 This script will download the latest stable release of `govman` for your system, install it to `$HOME/.govman/bin`, and add it to your shell's `PATH`.
 
+## Local Installation
+
+For developers or users who want to build and install `govman` from local source code, you can use the `install-local.sh` script:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/sijunda/govman/main/scripts/install-local.sh | bash
+```
+
+This script will build `govman` from the local source code and install it to `$HOME/.govman/bin`. Note that this requires Go to be installed on your system.
+
+## Uninstallation
+
+To uninstall `govman`, you can use the provided `uninstall.sh` script:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/sijunda/govman/main/scripts/uninstall.sh | bash
+```
+
+This script will remove the `govman` binary and remove it from your shell's `PATH`. It will also ask if you want to remove the entire `$HOME/.govman` directory which contains all installed Go versions and cached files.
+
 ## Building and Running
 
 The project uses a comprehensive `Makefile` to manage various development and build tasks.

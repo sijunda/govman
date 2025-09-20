@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 )
@@ -182,7 +183,7 @@ func (s *BashShell) SetupCommands(binPath string) []string {
 		"",
 		"# Trigger auto-switch for current directory on shell startup",
 		"govman_auto_switch",
-		"# GOVMAN - Go Version Manager",
+		"# END GOVMAN",
 	}
 }
 
@@ -244,7 +245,7 @@ func (s *ZshShell) SetupCommands(binPath string) []string {
 		"",
 		"# Trigger auto-switch for current directory on shell startup",
 		"govman_auto_switch",
-		"# GOVMAN - Go Version Manager",
+		"# END GOVMAN",
 	}
 }
 
@@ -302,7 +303,7 @@ func (s *FishShell) SetupCommands(binPath string) []string {
 		"",
 		"# Trigger auto-switch for current directory on shell startup",
 		"govman_auto_switch",
-		"# GOVMAN - Go Version Manager",
+		"# END GOVMAN",
 	}
 }
 
@@ -382,7 +383,7 @@ func (s *PowerShell) SetupCommands(binPath string) []string {
 		"",
 		"# Trigger auto-switch for current directory on startup",
 		"Set-GovmanAutoSwitch",
-		"# GOVMAN - Go Version Manager",
+		"# END GOVMAN",
 	}
 }
 
@@ -524,90 +525,21 @@ func containsGovmanConfig(content string) bool {
 	return false
 }
 
-// Remove existing govman configuration
+// removeExistingConfig removes the existing govman configuration from the content.
 func removeExistingConfig(content string) string {
-	lines := strings.Split(content, "\n")
-	var result []string
-	inGovmanSection := false
-	skipEmptyLines := 0
+	// Regex to find the govman block, accommodating different comment styles
+	// It looks for a block starting with a line containing "GOVMAN - Go Version Manager"
+	// and ending with a line containing "END GOVMAN".
+	// The (?s) flag allows . to match newlines.
+	// The non-greedy .*? ensures it only matches one block if multiple exist.
+	regex := `(?s)(?m)^.*GOVMAN - Go Version Manager.*?\n.*?# END GOVMAN\s*\n?`
+	r := regexp.MustCompile(regex)
 
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
+	// Replace the found block with an empty string
+	cleanedContent := r.ReplaceAllString(content, "")
 
-		// Start of govman section
-		if strings.Contains(line, "GOVMAN - Go Version Manager") {
-			inGovmanSection = true
-			// Skip any preceding empty line
-			if len(result) > 0 && strings.TrimSpace(result[len(result)-1]) == "" {
-				result = result[:len(result)-1]
-			}
-			continue
-		}
-
-		if inGovmanSection {
-			// Skip govman-related lines
-			if strings.Contains(line, "govman") ||
-				strings.Contains(line, "GOVMAN") ||
-				strings.Contains(line, "# Added by govman") ||
-				isGovmanFunction(line) {
-				continue
-			}
-
-			// Skip empty lines immediately after govman section
-			if trimmed == "" {
-				skipEmptyLines++
-				continue
-			}
-
-			// End of govman section when we hit non-empty, non-govman content
-			if trimmed != "" && !strings.Contains(trimmed, "govman") && !strings.Contains(trimmed, "GOVMAN") {
-				inGovmanSection = false
-				skipEmptyLines = 0
-			}
-		}
-
-		// Add line if not in govman section
-		if !inGovmanSection {
-			// Add back skipped empty lines (but limit to 1)
-			if skipEmptyLines > 0 && trimmed != "" {
-				result = append(result, "")
-				skipEmptyLines = 0
-			}
-			result = append(result, line)
-		}
-	}
-
-	// Clean up trailing empty lines
-	for len(result) > 0 && strings.TrimSpace(result[len(result)-1]) == "" {
-		result = result[:len(result)-1]
-	}
-
-	return strings.Join(result, "\n")
-}
-
-// Check if line is part of a govman function
-func isGovmanFunction(line string) bool {
-	govmanPatterns := []string{
-		"govman_auto_switch",
-		"Set-GovmanAutoSwitch",
-		"chpwd_functions+=(govman_auto_switch)",
-		"--on-variable PWD",
-		"OriginalPrompt",
-		"builtin cd",
-		"command cd",
-		"# Override cd command",
-		"# Hook function",
-		"# Auto-switch Go version",
-		"# Trigger auto-switch",
-	}
-
-	for _, pattern := range govmanPatterns {
-		if strings.Contains(line, pattern) {
-			return true
-		}
-	}
-
-	return false
+	// Trim any leading/trailing whitespace that might be left
+	return strings.TrimSpace(cleanedContent)
 }
 
 // GetShellInstructions returns manual setup instructions for a shell
