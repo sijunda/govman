@@ -150,6 +150,8 @@ func (d *Downloader) downloadFile(url string, fileInfo *_golang.File) (string, e
 	reader := io.TeeReader(resp.Body, progressBar)
 
 	if _, err := io.Copy(file, reader); err != nil {
+		// Ensure the file is closed before returning
+		file.Close()
 		return "", fmt.Errorf("failed to write file: %w", err)
 	}
 
@@ -229,6 +231,11 @@ func (d *Downloader) extractTarGz(archivePath, installDir string) error {
 			continue // Skip empty paths
 		}
 
+		// Validate that the path is safe and doesn't contain traversal sequences
+		if strings.Contains(path, "..") || filepath.IsAbs(path) {
+			return fmt.Errorf("unsafe path in archive: %s", header.Name)
+		}
+
 		targetPath := filepath.Join(installDir, path)
 		// Create parent directory only if it doesn't exist
 		parentDir := filepath.Dir(targetPath)
@@ -284,6 +291,11 @@ func (d *Downloader) extractZip(archivePath, installDir string) error {
 
 		if path == "" {
 			continue // Skip empty paths
+		}
+
+		// Validate that the path is safe and doesn't contain traversal sequences
+		if strings.Contains(path, "..") || filepath.IsAbs(path) {
+			return fmt.Errorf("unsafe path in archive: %s", file.Name)
 		}
 
 		targetPath := filepath.Join(installDir, path)

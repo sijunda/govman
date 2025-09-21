@@ -222,25 +222,34 @@ type versionParts struct {
 func parseVersion(version string) versionParts {
 	var parts versionParts
 
-	// Extract pre-release suffix
-	re := regexp.MustCompile(`^(\d+\.\d+(?:\.\d+)?)(?:-?(rc\d+|beta\d+|alpha\d+))?$`)
+	// Extract pre-release suffix with improved regex
+	re := regexp.MustCompile(`^(\d+)\.(\d+)(?:\.(\d+))?(?:-?(rc\d+|beta\d+|alpha\d+))?$`)
 	matches := re.FindStringSubmatch(version)
 
 	if len(matches) == 0 {
 		return parts // Invalid version
 	}
 
-	versionCore := matches[1]
-	if len(matches) > 2 {
-		parts.prerelease = matches[2]
+	// Parse major version
+	if num, err := strconv.Atoi(matches[1]); err == nil {
+		parts.numbers[0] = num
 	}
 
-	// Parse version numbers
-	nums := strings.Split(versionCore, ".")
-	for i := 0; i < len(nums) && i < 3; i++ {
-		if num, err := strconv.Atoi(nums[i]); err == nil {
-			parts.numbers[i] = num
+	// Parse minor version
+	if num, err := strconv.Atoi(matches[2]); err == nil {
+		parts.numbers[1] = num
+	}
+
+	// Parse patch version (optional)
+	if len(matches) > 3 && matches[3] != "" {
+		if num, err := strconv.Atoi(matches[3]); err == nil {
+			parts.numbers[2] = num
 		}
+	}
+
+	// Extract pre-release (if present)
+	if len(matches) > 4 && matches[4] != "" {
+		parts.prerelease = matches[4]
 	}
 
 	return parts

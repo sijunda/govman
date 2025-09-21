@@ -118,7 +118,11 @@ func (s *BashShell) IsAvailable() bool {
 }
 
 func (s *BashShell) ConfigFile() string {
-	home, _ := os.UserHomeDir()
+	home, err := os.UserHomeDir()
+	if err != nil {
+		// Fallback to a reasonable default if we can't get the home directory
+		home = "/tmp" // This is a fallback, in reality, this should be handled more gracefully
+	}
 	// Priority order: .bashrc > .bash_profile > .profile
 	candidates := []string{
 		filepath.Join(home, ".bashrc"),
@@ -201,7 +205,11 @@ func (s *ZshShell) IsAvailable() bool {
 }
 
 func (s *ZshShell) ConfigFile() string {
-	home, _ := os.UserHomeDir()
+	home, err := os.UserHomeDir()
+	if err != nil {
+		// Fallback to a reasonable default if we can't get the home directory
+		home = "/tmp" // This is a fallback, in reality, this should be handled more gracefully
+	}
 	return filepath.Join(home, ".zshrc")
 }
 
@@ -532,7 +540,7 @@ func removeExistingConfig(content string) string {
 	// and ending with a line containing "END GOVMAN".
 	// The (?s) flag allows . to match newlines.
 	// The non-greedy .*? ensures it only matches one block if multiple exist.
-	regex := `(?s)(?m)^.*GOVMAN - Go Version Manager.*?\n.*?# END GOVMAN\s*\n?`
+	regex := `(?s)(?m)^.*GOVMAN - Go Version Manager.*?\n(?:.*?\n)*?# END GOVMAN\s*\n?`
 	r := regexp.MustCompile(regex)
 
 	// Replace the found block with an empty string

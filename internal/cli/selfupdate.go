@@ -148,7 +148,7 @@ func runSelfUpdate(checkOnly, force, prerelease bool) error {
 
 	// Rename the current binary to a backup
 	_logger.Verbose("Creating backup of current binary")
-	backupBinary := currentBinary + ".bak"
+	backupBinary := currentBinary + ".bak." + fmt.Sprintf("%d", time.Now().Unix())
 	if err := os.Rename(currentBinary, backupBinary); err != nil {
 		_logger.ErrorWithHelp("Failed to create backup of current binary", "Check if you have permission to modify the binary directory.", "")
 		return fmt.Errorf("failed to rename current binary to backup: %w", err)

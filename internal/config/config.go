@@ -90,7 +90,11 @@ func Load(configFile string) (*Config, error) {
 }
 
 func (c *Config) setDefaults() {
-	homeDir, _ := getHomeDir()
+	homeDir, err := getHomeDir()
+	if err != nil {
+		// Fallback to a reasonable default if we can't get the home directory
+		homeDir = "/tmp" // This is a fallback, in reality, this should be handled more gracefully
+	}
 	govmanDir := filepath.Join(homeDir, ".govman")
 
 	c.InstallDir = filepath.Join(govmanDir, "versions")
