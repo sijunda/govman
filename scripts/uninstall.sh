@@ -98,8 +98,13 @@ get_user_input() {
     local prompt="$1"
     local response=""
     
-    # Read from /dev/tty if available (works when script is piped)
-    read -r -p "$(echo -e "$prompt")" response
+    # Always read from /dev/tty when available
+    if [[ -e /dev/tty ]]; then
+        read -r -p "$(echo -e "$prompt")" response </dev/tty
+    else
+        # Fallback to standard input
+        read -r -p "$(echo -e "$prompt")" response
+    fi
     
     echo "$response"
 }
