@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # govman installation script
 # This script installs govman to $HOME/.govman/bin and adds it to PATH
@@ -26,21 +26,20 @@ BLINK='\033[5m'
 CHECKMARK="✓"
 CROSSMARK="✗"
 ARROW="→"
-STAR="★"
+DOWNLOAD="⬇"
+WARNING="⚠"
+INSTALL="📦"
+INFO="ℹ"
 ROCKET="🚀"
 GEAR="⚙"
-DOWNLOAD="📦"
-SUCCESS="🎉"
-WARNING="⚠"
-INFO="ℹ"
 
 # Terminal width detection
 TERM_WIDTH=$(tput cols 2>/dev/null || echo 80)
 
 # Print separator line
 print_separator() {
-    local char="${1:-─}"
-    printf "${GRAY}%*s${NC}\n" $TERM_WIDTH | tr ' ' "$char"
+    local char="${1:--}"
+    printf "%*s\n" "$TERM_WIDTH" | tr ' ' "$char"
 }
 
 # Print fancy header
@@ -48,15 +47,17 @@ print_header() {
     clear
     print_separator "═"
     echo
-    echo -e "${BOLD}${CYAN}    ██████╗  ██████╗ ██╗   ██╗███╗   ███╗ █████╗ ███╗   ██╗${NC}"
-    echo -e "${BOLD}${CYAN}   ██╔════╝ ██╔═══██╗██║   ██║████╗ ████║██╔══██╗████╗  ██║${NC}"
-    echo -e "${BOLD}${CYAN}   ██║  ███╗██║   ██║██║   ██║██╔████╔██║███████║██╔██╗ ██║${NC}"
-    echo -e "${BOLD}${CYAN}   ██║   ██║██║   ██║╚██╗ ██╔╝██║╚██╔╝██║██╔══██║██║╚██╗██║${NC}"
-    echo -e "${BOLD}${CYAN}   ╚██████╔╝╚██████╔╝ ╚████╔╝ ██║ ╚═╝ ██║██║  ██║██║ ╚████║${NC}"
-    echo -e "${BOLD}${CYAN}    ╚═════╝  ╚═════╝   ╚═══╝  ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝${NC}"
     echo
-    echo -e "${BOLD}${WHITE}                     Go Version Manager Installer${NC}"
-    echo -e "${DIM}${GRAY}                   Enhanced with modern UI/UX${NC}"
+    echo '    ██╗███╗   ██╗███████╗████████╗ █████╗ ██╗     ██╗     ███████╗██████╗'
+    echo '    ██║████╗  ██║██╔════╝╚══██╔══╝██╔══██╗██║     ██║     ██╔════╝██╔══██╗'
+    echo '    ██║██╔██╗ ██║███████╗   ██║   ███████║██║     ██║     █████╗  ██████╔╝'
+    echo '    ██║██║╚██╗██║╚════██║   ██║   ██╔══██║██║     ██║     ██╔══╝  ██╔══██╗'
+    echo '    ██║██║ ╚████║███████║   ██║   ██║  ██║███████╗███████╗███████╗██║  ██║'
+    echo '    ╚═╝╚═╝  ╚═══╝╚══════╝   ╚═╝   ╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝╚═╝  ╚═╝'
+    echo
+    echo
+    echo -e "${BOLD}${WHITE}                        Go Version Manager Installer${NC}"
+    echo -e "${DIM}${GRAY}                    Fast and secure installation process${NC}"
     echo
     print_separator "═"
     echo
@@ -83,51 +84,8 @@ print_step() {
     echo -e "${PURPLE}${BOLD} ${ARROW}  STEP${NC} ${GRAY}│${NC} $1"
 }
 
-print_download() {
-    echo -e "${CYAN}${BOLD} ${DOWNLOAD}  DOWNLOAD${NC} ${GRAY}│${NC} $1"
-}
-
-# Animated loading spinner
-show_spinner() {
-    local pid=$1
-    local delay=0.1
-    local spinstr='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
-    local temp
-    echo -n " "
-    while kill -0 $pid 2>/dev/null; do
-        temp=${spinstr#?}
-        printf "\r${CYAN}%c${NC}" "$spinstr"
-        spinstr=$temp${spinstr%"$temp"}
-        sleep $delay
-    done
-    printf "\r"
-}
-
-# Progress bar function
-show_progress() {
-    local current=$1
-    local total=$2
-    local width=40
-    local percentage=$((current * 100 / total))
-    local completed=$((current * width / total))
-    local remaining=$((width - completed))
-    
-    printf "\r${BOLD}Progress: ${NC}["
-    printf "${GREEN}%*s" $completed | tr ' ' '█'
-    printf "${GRAY}%*s" $remaining | tr ' ' '░'
-    printf "${NC}] ${BOLD}%d%%${NC}" $percentage
-}
-
-# System information display
-show_system_info() {
-    echo -e "${BOLD}${WHITE}System Information:${NC}"
-    print_separator "┄"
-    echo -e "${GRAY} OS:${NC}           $(uname -s)"
-    echo -e "${GRAY} Architecture:${NC} $(uname -m)"
-    echo -e "${GRAY} Shell:${NC}        $SHELL"
-    echo -e "${GRAY} User:${NC}         $USER"
-    echo -e "${GRAY} Home:${NC}         $HOME"
-    echo
+print_install() {
+    echo -e "${CYAN}${BOLD} ${INSTALL}  INSTALLING${NC} ${GRAY}│${NC} $1"
 }
 
 # Check if running on Windows (Git Bash)
@@ -140,46 +98,48 @@ detect_shell_config() {
     local shell_name=""
     local config_file=""
     
-    # Get the current shell
-    if [ -n "$BASH_VERSION" ]; then
-        shell_name="bash"
-        if [[ "$OSTYPE" == "darwin"* ]]; then
-            # macOS uses .bash_profile by default
-            config_file="~/.bash_profile"
-        else
-            config_file="~/.bashrc"
-        fi
-    elif [ -n "$ZSH_VERSION" ]; then
-        shell_name="zsh"
-        config_file="~/.zshrc"
-    elif [ -n "$FISH_VERSION" ]; then
-        shell_name="fish"
-        config_file="~/.config/fish/config.fish"
-    else
-        # Try to detect from $SHELL environment variable
-        case "$(basename "$SHELL")" in
-            bash)
+    # Debug: Print environment variables for troubleshooting
+    # echo "DEBUG: SHELL=$SHELL, ZSH_VERSION=$ZSH_VERSION, BASH_VERSION=$BASH_VERSION" >&2
+    
+    # First priority: Check the actual running shell from $SHELL
+    case "$(basename "$SHELL")" in
+        zsh)
+            shell_name="zsh"
+            config_file="~/.zshrc"
+            ;;
+        bash)
+            shell_name="bash"
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                config_file="~/.bash_profile"
+            else
+                config_file="~/.bashrc"
+            fi
+            ;;
+        fish)
+            shell_name="fish"
+            config_file="~/.config/fish/config.fish"
+            ;;
+        *)
+            # Fallback: Check version variables (less reliable when running bash script in zsh)
+            if [ -n "$ZSH_VERSION" ]; then
+                shell_name="zsh"
+                config_file="~/.zshrc"
+            elif [ -n "$BASH_VERSION" ]; then
                 shell_name="bash"
                 if [[ "$OSTYPE" == "darwin"* ]]; then
                     config_file="~/.bash_profile"
                 else
                     config_file="~/.bashrc"
                 fi
-                ;;
-            zsh)
-                shell_name="zsh"
-                config_file="~/.zshrc"
-                ;;
-            fish)
+            elif [ -n "$FISH_VERSION" ]; then
                 shell_name="fish"
                 config_file="~/.config/fish/config.fish"
-                ;;
-            *)
+            else
                 shell_name="shell"
                 config_file="your shell's configuration file"
-                ;;
-        esac
-    fi
+            fi
+            ;;
+    esac
     
     echo "${shell_name}:${config_file}"
 }
@@ -208,12 +168,10 @@ get_restart_instruction() {
     fi
 }
 
-# Detect OS and architecture with enhanced display
+# Detect OS and architecture
 detect_platform() {
     local os=""
     local arch=""
-    
-    print_step "Detecting platform..."
     
     case "$(uname -s)" in
         Linux*)     os=linux;;
@@ -240,25 +198,17 @@ detect_platform() {
     echo "${os}/${arch}"
 }
 
-# Get the latest release version from GitHub with progress
+# Get the latest release version from GitHub
 get_latest_version() {
     local version=""
-    print_step "Fetching latest version from GitHub..."
-    
-    # Show spinner for API call
-    (
-        if command -v curl >/dev/null 2>&1; then
-            version=$(curl -s https://api.github.com/repos/sijunda/govman/releases/latest | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
-        elif command -v wget >/dev/null 2>&1; then
-            version=$(wget -qO- https://api.github.com/repos/sijunda/govman/releases/latest | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
-        else
-            print_error "Either curl or wget is required to download govman"
-            exit 1
-        fi
-    ) & 
-    
-    show_spinner $!
-    wait
+    if command -v curl >/dev/null 2>&1; then
+        version=$(curl -s https://api.github.com/repos/sijunda/govman/releases/latest | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
+    elif command -v wget >/dev/null 2>&1; then
+        version=$(wget -qO- https://api.github.com/repos/sijunda/govman/releases/latest | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
+    else
+        print_error "Either curl or wget is required to download govman"
+        exit 1
+    fi
     
     if [[ -z "$version" ]]; then
         print_error "Failed to get latest version information"
@@ -268,7 +218,41 @@ get_latest_version() {
     echo "$version"
 }
 
-# Enhanced download with progress simulation
+# Animated loading for download process
+show_download_progress() {
+    local item="$1"
+    local delay=0.1
+    local spinstr='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+    local temp
+    
+    echo -n "   ${DIM}Downloading $item... ${NC}"
+    for i in {1..15}; do
+        temp=${spinstr#?}
+        printf "\r   ${DIM}Downloading $item... ${CYAN}%c${NC} " "$spinstr"
+        spinstr=$temp${spinstr%"$temp"}
+        sleep $delay
+    done
+    printf "\r   ${GREEN}${CHECKMARK}${NC} Downloaded $item successfully.      \n"
+}
+
+# Animated loading for installation process
+show_install_progress() {
+    local item="$1"
+    local delay=0.1
+    local spinstr='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+    local temp
+    
+    echo -n "   ${DIM}Installing $item... ${NC}"
+    for i in {1..10}; do
+        temp=${spinstr#?}
+        printf "\r   ${DIM}Installing $item... ${PURPLE}%c${NC} " "$spinstr"
+        spinstr=$temp${spinstr%"$temp"}
+        sleep $delay
+    done
+    printf "\r   ${GREEN}${CHECKMARK}${NC} Installed $item successfully.      \n"
+}
+
+# Download the binary
 download_binary() {
     local version="$1"
     local platform="$2"
@@ -289,36 +273,24 @@ download_binary() {
         download_url="${download_url}.exe"
     fi
     
-    print_download "Downloading govman ${version} for ${platform}..."
-    echo -e "${DIM}${GRAY}   URL: $download_url${NC}"
-    echo
+    print_step "Downloading govman ${version} for ${platform}..."
+    print_info "Download URL: $download_url"
     
     # Create install directory
     mkdir -p "$install_dir"
     
-    # Simulate download progress (since we can't easily get real progress from curl/wget)
-    echo -n "   "
-    for i in {1..20}; do
-        show_progress $i 20
-        sleep 0.05
-    done
-    echo
-    echo
+    # Show download progress animation
+    show_download_progress "govman binary"
     
     # Download binary
-    (
-        if command -v curl >/dev/null 2>&1; then
-            curl -sSL -o "${install_dir}/${binary_name}" "$download_url"
-        elif command -v wget >/dev/null 2>&1; then
-            wget -qO "${install_dir}/${binary_name}" "$download_url"
-        else
-            print_error "Either curl or wget is required to download govman"
-            exit 1
-        fi
-    ) &
-    
-    show_spinner $!
-    wait
+    if command -v curl >/dev/null 2>&1; then
+        curl -sSL -o "${install_dir}/${binary_name}" "$download_url"
+    elif command -v wget >/dev/null 2>&1; then
+        wget -qO "${install_dir}/${binary_name}" "$download_url"
+    else
+        print_error "Either curl or wget is required to download govman"
+        exit 1
+    fi
     
     # Check if download was successful
     if [[ ! -f "${install_dir}/${binary_name}" ]]; then
@@ -328,10 +300,11 @@ download_binary() {
     
     # Make binary executable
     chmod +x "${install_dir}/${binary_name}"
-    print_success "Binary downloaded and made executable"
+    
+    print_success "Downloaded govman binary to ${install_dir}/${binary_name}"
 }
 
-# Enhanced PATH configuration
+# Add to PATH and initialize shell configuration
 add_to_path() {
     local install_dir="$1"
     local govman_binary="${install_dir}/govman"
@@ -343,77 +316,165 @@ add_to_path() {
     fi
 
     print_step "Configuring shell environment..."
-    echo -e "${DIM}${GRAY}   Running 'govman init --force'...${NC}"
-    echo
+
+    # Show install progress animation
+    show_install_progress "shell configuration"
 
     # Run `govman init` and capture its output
+    # The `init` command will automatically detect the shell and provide setup instructions
+    # We use `--force` to ensure it overwrites any existing configuration
     local init_output
-    (
-        if init_output=$("$govman_binary" init --force 2>&1); then
-            echo "$init_output" > /tmp/govman_init_output
-        else
-            echo "$init_output" > /tmp/govman_init_output
-            exit 1
-        fi
-    ) &
-    
-    show_spinner $!
-    wait
-    
-    if [ $? -eq 0 ]; then
-        print_success "Shell configuration completed"
-        local output=$(cat /tmp/govman_init_output)
-        if [[ -n "$output" ]]; then
-            echo -e "${DIM}${GRAY}$output${NC}"
+    if init_output=$("$govman_binary" init --force 2>&1); then
+        print_success "Shell configuration completed successfully"
+        # The output of `govman init` will guide the user if manual steps are needed
+        # For Unix-like shells, it will automatically update the config file
+        # For PowerShell/cmd, it will print instructions
+        if [[ -n "$init_output" ]]; then
+            echo "$init_output"
         fi
     else
-        print_error "Shell configuration failed"
-        local output=$(cat /tmp/govman_init_output)
-        echo "$output"
-        print_warning "You may need to run 'govman init' manually to complete the setup"
-    fi
-    
-    # Cleanup temp file
-    rm -f /tmp/govman_init_output
-}
-
-# Enhanced verification with detailed output
-verify_installation() {
-    local install_dir="$1"
-    
-    print_step "Verifying installation..."
-    
-    if "$install_dir/govman" --version >/dev/null 2>&1; then
-        local version_output=$("$install_dir/govman" --version)
-        print_success "Installation verified successfully!"
-        echo -e "${DIM}${GRAY}   Version: $version_output${NC}"
-        return 0
-    else
-        print_warning "Installation completed, but verification failed"
-        print_info "Please restart your terminal and try running 'govman --version'"
-        return 1
+        print_error "Shell configuration failed. Please check the output below for details:"
+        echo "$init_output"
+        print_warning "You may need to run 'govman init' manually to complete the setup."
     fi
 }
 
-# Final success message with instructions
+# Show system information
+show_system_info() {
+    local platform="$1"
+    local version="$2"
+    local install_dir="$3"
+    
+    print_separator "┄"
+    echo -e "${BOLD}${WHITE}System Information:${NC}"
+    print_separator "┄"
+    
+    local os=$(echo "$platform" | cut -d'/' -f1)
+    local arch=$(echo "$platform" | cut -d'/' -f2)
+    
+    # Capitalize first letter (compatible with older bash versions)
+    local os_capitalized=$(echo "$os" | sed 's/./\U&/')
+    
+    echo -e "${GREEN} ${CHECKMARK}${NC} Operating System: ${BOLD}${os_capitalized}${NC}"
+    echo -e "${GREEN} ${CHECKMARK}${NC} Architecture: ${BOLD}${arch}${NC}"
+    echo -e "${GREEN} ${CHECKMARK}${NC} Version: ${BOLD}${version}${NC}"
+    echo -e "${BLUE} ${INFO}${NC} Install Directory: ${BOLD}${install_dir}${NC}"
+    
+    print_separator "┄"
+    echo
+}
+
+# Show completion message
 show_completion() {
-    local restart_instruction="$1"
+    local version="$1"
+    local restart_instruction="$2"
     
     echo
     print_separator "═"
     echo
-    echo -e "${GREEN}${BOLD} ${SUCCESS}  INSTALLATION COMPLETE!${NC}"
+    echo -e "${GREEN}${BOLD} ${ROCKET}  INSTALLATION SUCCESSFUL!${NC}"
     echo
+    print_separator "┄"
+    echo -e "${BOLD}${WHITE}What was installed:${NC}"
+    echo " • govman binary and executable"
+    echo " • Shell PATH configurations"
+    echo " • Environment setup complete"
     print_separator "┄"
     echo -e "${BOLD}${WHITE}Next Steps:${NC}"
-    echo -e "${GRAY} 1.${NC} $restart_instruction"
-    echo -e "${GRAY} 2.${NC} Run ${CYAN}govman --help${NC} to get started"
-    echo -e "${GRAY} 3.${NC} Use ${CYAN}govman list${NC} to see available Go versions"
-    echo -e "${GRAY} 4.${NC} Use ${CYAN}govman install <version>${NC} to install a Go version"
+    echo " 1. $restart_instruction"
+    echo " 2. Verify with 'govman --version'"
+    echo " 3. Get started with 'govman --help'"
     print_separator "┄"
-    echo -e "${DIM}${GRAY}Thank you for using govman! ${STAR}${NC}"
+    echo -e "${BOLD}${WHITE}Quick Commands:${NC}"
+    echo " • govman list         - List available Go versions"
+    echo " • govman install 1.21 - Install Go 1.21"
+    echo " • govman use 1.21     - Switch to Go 1.21"
+    print_separator "┄"
+    echo "Welcome to govman! 🎉"
     print_separator "═"
     echo
+}
+
+# Check if govman is already installed
+check_existing_installation() {
+    local install_dir="$HOME/.govman/bin"
+    local govman_dir="$HOME/.govman"
+    local shell_configs=("$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.zshrc")
+    local binary_found=false
+    local config_found=false
+    local command_found=false
+    
+    # Add fish config if it exists
+    if [[ -f "$HOME/.config/fish/config.fish" ]]; then
+        shell_configs+=("$HOME/.config/fish/config.fish")
+    fi
+    
+    print_step "Checking for existing installation..."
+    
+    # Check binary directory
+    if [[ -f "$install_dir/govman" ]]; then
+        binary_found=true
+    fi
+    
+    # Check shell configurations
+    for shell_config in "${shell_configs[@]}"; do
+        if [[ -f "$shell_config" ]] && grep -q "# GOVMAN - Go Version Manager" "$shell_config" 2>/dev/null; then
+            config_found=true
+            break
+        fi
+    done
+    
+    # Check if govman command is available in PATH
+    if command -v govman >/dev/null 2>&1; then
+        command_found=true
+    fi
+    
+    # If any installation traces found, show details and exit
+    if [[ "$binary_found" == true || "$config_found" == true || "$command_found" == true ]]; then
+        echo
+        print_separator "┄"
+        echo -e "${BOLD}${WHITE}Existing Installation Detected:${NC}"
+        print_separator "┄"
+        
+        if [[ "$binary_found" == true ]]; then
+            echo -e "${GREEN} ${CHECKMARK}${NC} Binary found: ${BOLD}$install_dir/govman${NC}"
+        fi
+        
+        if [[ "$config_found" == true ]]; then
+            echo -e "${GREEN} ${CHECKMARK}${NC} Shell configuration: ${BOLD}Found in PATH${NC}"
+        fi
+        
+        if [[ "$command_found" == true ]]; then
+            local version=$(govman --version 2>/dev/null | head -1 || echo "unknown")
+            echo -e "${GREEN} ${CHECKMARK}${NC} Command available: ${BOLD}govman${NC} ${DIM}($version)${NC}"
+        fi
+        
+        if [[ -d "$govman_dir" ]]; then
+            local dir_size=$(du -sh "$govman_dir" 2>/dev/null | cut -f1 || echo "unknown")
+            echo -e "${BLUE} ${INFO}${NC} Data directory: ${BOLD}$govman_dir${NC} ${DIM}($dir_size)${NC}"
+        fi
+        
+        print_separator "┄"
+        echo
+        print_warning "govman is already installed on this system!"
+        echo
+        print_separator "┄"
+        echo -e "${BOLD}${WHITE}What you can do:${NC}"
+        echo " • Run 'govman --version' to check current version"
+        echo " • Run 'govman --help' to see available commands"
+        echo " • Use the uninstaller script first if you need to reinstall"
+        echo " • Check 'govman list' to see available Go versions"
+        print_separator "┄"
+        echo
+        print_separator "═"
+        echo -e "${DIM}${GRAY}Installation cancelled - govman already exists${NC}"
+        print_separator "═"
+        echo
+        exit 0
+    else
+        print_success "No existing installation found - proceeding with fresh install"
+        echo
+    fi
 }
 
 # Main installation function
@@ -421,26 +482,33 @@ main() {
     # Show header
     print_header
     
-    # Show system information
-    show_system_info
-    
     print_info "Starting govman installation process..."
     echo
     
+    # Check for existing installation first
+    check_existing_installation
+    
     # Detect platform
+    print_step "Detecting system platform..."
     local platform
     platform=$(detect_platform)
-    print_success "Platform detected: ${BOLD}$platform${NC}"
+    print_success "Detected platform: ${BOLD}$platform${NC}"
+    echo
     
     # Get latest version
+    print_step "Fetching latest version information..."
     local version
     version=$(get_latest_version)
-    print_success "Latest version found: ${BOLD}$version${NC}"
+    print_success "Latest version: ${BOLD}$version${NC}"
+    echo
     
     # Set installation directory
     local install_dir="$HOME/.govman/bin"
     print_info "Installation directory: ${BOLD}$install_dir${NC}"
     echo
+    
+    # Show system info
+    show_system_info "$platform" "$version" "$install_dir"
     
     # Download binary
     download_binary "$version" "$platform" "$install_dir"
@@ -451,25 +519,31 @@ main() {
     echo
     
     # Verify installation
-    if verify_installation "$install_dir"; then
-        # Get restart instruction
+    print_step "Verifying installation..."
+    if "$install_dir/govman" --version >/dev/null 2>&1; then
+        local installed_version=$("$install_dir/govman" --version 2>/dev/null | head -1 || echo "unknown")
+        print_success "Installation verified: ${BOLD}$installed_version${NC}"
+        
+        # Dynamic restart instruction
         local restart_instruction
         restart_instruction=$(get_restart_instruction)
         
-        # Show completion message
-        show_completion "$restart_instruction"
+        show_completion "$version" "$restart_instruction"
     else
+        print_warning "Installation completed, but verification failed"
         echo
-        print_separator "═"
-        print_warning "Installation completed with warnings"
-        print_info "Please restart your terminal and verify with 'govman --version'"
-        print_separator "═"
+        print_separator "┄"
+        echo -e "${BOLD}${WHITE}Manual Steps Required:${NC}"
+        echo " 1. Restart your terminal"
+        echo " 2. Try running 'govman --version'"
+        echo " 3. If issues persist, run 'govman init' manually"
+        print_separator "┄"
         echo
     fi
 }
 
 # Trap to ensure clean exit
-trap 'echo -e "\n${RED}Installation interrupted${NC}"; exit 1' INT TERM
+trap 'echo -e "\n${RED}Installation interrupted. Partial installation may have occurred.${NC}"; exit 1' INT TERM
 
 # Run main function
 main "$@"
