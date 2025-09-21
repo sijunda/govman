@@ -4,10 +4,10 @@
 
 The govman logging system provides a centralized way to handle all user-facing messages with different verbosity levels. It supports three logging levels:
 
+
 1. **Quiet Level** - Shows only errors
 2. **Normal Level** - Shows essential information (default)
-3. **Verbose Level** - Shows detailed information including debug messages and timing
-
+3. **Verbose Level** - Shows detailed information including debug messages, timing, internal logs, and progress bars
 ## Usage
 
 ### Command Line Flags
@@ -17,7 +17,31 @@ The govman logging system provides a centralized way to handle all user-facing m
 
 ### Log Levels
 
-The logger provides several methods for different types of messages:
+The logger provides several methods for different types of messages, clearly separated between user-facing messages and internal logs:
+
+### User-Facing Messages
+
+These messages are intended to be seen by end users and provide essential information about the operations being performed:
+
+- Error Messages (`Error`, `ErrorWithHelp`)
+- Informational Messages (`Info`)
+- Success Messages (`Success`)
+- Warning Messages (`Warning`)
+- Progress Messages (`Progress`)
+- Download Messages (`Download`)
+- Extraction Messages (`Extract`)
+- Verification Messages (`Verify`)
+
+### Internal Logs
+
+These messages are intended for developers and advanced users for debugging and detailed tracing. They are only shown in verbose mode:
+
+- Verbose Messages (`Verbose`)
+- Debug Messages (`Debug`)
+- Step Messages (`Step`)
+- Internal Progress Messages (`InternalProgress`)
+- Timing Information (automatically shown with `StartTimer`/`StopTimer`)
+- Progress Bars (automatically shown during long operations)
 
 #### Error Messages
 ```go
@@ -84,7 +108,18 @@ Shown in normal and verbose modes.
 ```go
 _logger.Step("Step message")
 ```
-Shown in normal and verbose modes.
+Only shown in verbose mode.
+
+#### Internal Progress Messages
+```go
+_logger.InternalProgress("Internal progress message")
+```
+Only shown in verbose mode. Used for internal progress tracking that shouldn't be shown to users.
+
+### Progress Bar
+The progress bar is automatically displayed during downloads and other long-running operations,
+but only when running in verbose mode. In normal mode, no progress bar is shown to keep the
+output clean and focused on essential information.
 
 ### Timing Operations
 
@@ -125,6 +160,9 @@ All messages follow a consistent format with appropriate emojis:
 4. Use consistent formatting with emojis
 5. Provide help text with error messages when possible
 6. Use step messages to indicate progress through multi-step operations
+7. Clearly separate user-facing messages from internal logs
+8. Use InternalProgress for internal progress tracking that shouldn't be shown to users
+9. Only show progress bars in verbose mode to keep normal output clean
 
 ## Examples
 

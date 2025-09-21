@@ -36,7 +36,7 @@ func New(cfg *_config.Config) *Downloader {
 // Download downloads and installs a Go version
 func (d *Downloader) Download(url, installDir, version string) error {
 	// Get file info for verification
-	_logger.Verbose("Retrieving file information")
+	_logger.InternalProgress("Retrieving file information")
 	timer := _logger.StartTimer("file info retrieval")
 	fileInfo, err := _golang.GetFileInfo(version)
 	if err != nil {
@@ -46,7 +46,7 @@ func (d *Downloader) Download(url, installDir, version string) error {
 	_logger.StopTimer(timer)
 
 	// Download file
-	_logger.Verbose("Downloading file")
+	_logger.InternalProgress("Downloading file")
 	archivePath, err := d.downloadFile(url, fileInfo)
 	if err != nil {
 		return fmt.Errorf("failed to download: %w", err)
@@ -54,7 +54,7 @@ func (d *Downloader) Download(url, installDir, version string) error {
 	defer os.Remove(archivePath) // Clean up downloaded file
 
 	// Verify checksum
-	_logger.Verbose("Verifying checksum")
+	_logger.InternalProgress("Verifying checksum")
 	timer = _logger.StartTimer("checksum verification")
 	if err := d.verifyChecksum(archivePath, fileInfo.Sha256); err != nil {
 		_logger.StopTimer(timer)
@@ -63,7 +63,7 @@ func (d *Downloader) Download(url, installDir, version string) error {
 	_logger.StopTimer(timer)
 
 	// Extract archive
-	_logger.Verbose("Extracting archive")
+	_logger.InternalProgress("Extracting archive")
 	timer = _logger.StartTimer("archive extraction")
 	if err := d.extractArchive(archivePath, installDir); err != nil {
 		_logger.StopTimer(timer)
@@ -143,11 +143,20 @@ func (d *Downloader) downloadFile(url string, fileInfo *_golang.File) (string, e
 		totalSize = currentSize + resp.ContentLength
 	}
 
-	progressBar := _progress.New(totalSize, fmt.Sprintf("Downloading %s", filename))
-	progressBar.Set(currentSize) // Set current progress for resume
+	// Only show progress bar in verbose mode
+	var progressBar *_progress.ProgressBar
+	if _logger.Get().Level() >= _logger.VerboseLevel {
+		progressBar = _progress.New(totalSize, fmt.Sprintf("Downloading %s", filename))
+		progressBar.Set(currentSize) // Set current progress for resume
+	}
 
 	// Download with progress
-	reader := io.TeeReader(resp.Body, progressBar)
+	var reader io.Reader
+	if progressBar != nil {
+		reader = io.TeeReader(resp.Body, progressBar)
+	} else {
+		reader = resp.Body
+	}
 
 	if _, err := io.Copy(file, reader); err != nil {
 		// Ensure the file is closed before returning
@@ -155,7 +164,9 @@ func (d *Downloader) downloadFile(url string, fileInfo *_golang.File) (string, e
 		return "", fmt.Errorf("failed to write file: %w", err)
 	}
 
-	progressBar.Finish()
+	if progressBar != nil {
+		progressBar.Finish()
+	}
 	return cachePath, nil
 }
 

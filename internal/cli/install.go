@@ -26,7 +26,6 @@ Examples:
 
 			var errors []string
 			for _, version := range args {
-				_logger.Info("📦 Installing Go %s...", version)
 				if err := mgr.Install(version); err != nil {
 					errors = append(errors, fmt.Sprintf("Go %s: %v", version, err))
 					continue
@@ -60,7 +59,6 @@ func newUninstallCmd() *cobra.Command {
 			version := args[0]
 			mgr := _manager.New(getConfig())
 
-			_logger.Info("🗑️  Uninstalling Go %s...", version)
 			err := mgr.Uninstall(version)
 			if err != nil {
 				_logger.ErrorWithHelp("Failed to uninstall Go %s", "Make sure the version is installed and not currently active.", version)

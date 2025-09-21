@@ -29,8 +29,6 @@ Examples:
 
 			// The manager function will print the shell command to stdout for session-only use.
 			// We still want our logs to go to stderr.
-			_logger.Info("🐹 Switching to Go %s...", version)
-
 			err := mgr.Use(version, setDefault, setLocal)
 			if err != nil {
 				_logger.ErrorWithHelp("Failed to switch to Go %s", "Make sure the version is installed. Use 'govman list' to see installed versions.", version)

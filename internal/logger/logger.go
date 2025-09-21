@@ -1,4 +1,5 @@
-// Package logger provides a centralized logging system for user-facing messages
+// Package logger provides a centralized logging system with clear separation
+// between user-facing messages and internal logs.
 package logger
 
 import (
@@ -61,7 +62,14 @@ func (l *Logger) SetLevel(level LogLevel) {
 	l.level = level
 }
 
-// Error logs an error message (always shown)
+// Level returns the current logging level
+func (l *Logger) Level() LogLevel {
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
+	return l.level
+}
+
+// Error logs an error message (always shown to users)
 func (l *Logger) Error(format string, args ...interface{}) {
 	if l.level >= QuietLevel {
 		fmt.Fprintf(l.writer, "❌ Error: "+format+"\n", args...)
@@ -119,6 +127,7 @@ func (l *Logger) Warning(format string, args ...interface{}) {
 }
 
 // Verbose logs a verbose message (only shown in verbose mode)
+// These are internal logs for debugging and detailed information
 func (l *Logger) Verbose(format string, args ...interface{}) {
 	if l.level >= VerboseLevel {
 		fmt.Fprintf(l.writer, "🔍 [VERBOSE] "+format+"\n", args...)
@@ -126,44 +135,52 @@ func (l *Logger) Verbose(format string, args ...interface{}) {
 }
 
 // Debug logs a debug message (only shown in verbose mode)
+// These are internal logs for developers and advanced troubleshooting
 func (l *Logger) Debug(format string, args ...interface{}) {
 	if l.level >= VerboseLevel {
 		fmt.Fprintf(l.writer, "🐛 [DEBUG] "+format+"\n", args...)
 	}
 }
 
-// Progress logs a progress message
+// Progress logs a progress message (shown to users in normal mode)
 func (l *Logger) Progress(format string, args ...interface{}) {
 	if l.level >= NormalLevel {
 		fmt.Fprintf(l.writer, "🔄 "+format+"\n", args...)
 	}
 }
 
-// Step logs a step in a process
+// Step logs a step in a process (internal logging)
 func (l *Logger) Step(format string, args ...interface{}) {
 	if l.level >= VerboseLevel {
 		fmt.Fprintf(l.writer, "📋 "+format+"\n", args...)
 	}
 }
 
-// Download logs a download message
+// Download logs a download message (shown to users in normal mode)
 func (l *Logger) Download(format string, args ...interface{}) {
 	if l.level >= NormalLevel {
 		fmt.Fprintf(l.writer, "📦 "+format+"\n", args...)
 	}
 }
 
-// Extract logs an extraction message
+// Extract logs an extraction message (shown to users in normal mode)
 func (l *Logger) Extract(format string, args ...interface{}) {
 	if l.level >= NormalLevel {
 		fmt.Fprintf(l.writer, "📂 "+format+"\n", args...)
 	}
 }
 
-// Verify logs a verification message
+// Verify logs a verification message (shown to users in normal mode)
 func (l *Logger) Verify(format string, args ...interface{}) {
 	if l.level >= NormalLevel {
 		fmt.Fprintf(l.writer, "🔍 "+format+"\n", args...)
+	}
+}
+
+// InternalProgress logs an internal progress message (only shown in verbose mode)
+func (l *Logger) InternalProgress(format string, args ...interface{}) {
+	if l.level >= VerboseLevel {
+		fmt.Fprintf(l.writer, "🔄 [INTERNAL] "+format+"\n", args...)
 	}
 }
 
@@ -247,4 +264,9 @@ func ErrorWithHelp(errorMsg, helpMsg string, args ...interface{}) {
 // Step logs a step using the global logger
 func Step(format string, args ...interface{}) {
 	Get().Step(format, args...)
+}
+
+// InternalProgress logs an internal progress message using the global logger
+func InternalProgress(format string, args ...interface{}) {
+	Get().InternalProgress(format, args...)
 }
