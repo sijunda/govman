@@ -143,20 +143,25 @@ func (d *Downloader) downloadFile(url string, fileInfo *_golang.File) (string, e
 		totalSize = currentSize + resp.ContentLength
 	}
 
-	// Only show progress bar in verbose mode
-	var progressBar *_progress.ProgressBar
-	if _logger.Get().Level() >= _logger.VerboseLevel {
-		progressBar = _progress.New(totalSize, fmt.Sprintf("Downloading %s", filename))
-		progressBar.Set(currentSize) // Set current progress for resume
-	}
+	progressBar := _progress.New(totalSize, fmt.Sprintf("Downloading %s", filename))
+	progressBar.Set(currentSize) // Set current progress for resume
 
 	// Download with progress
-	var reader io.Reader
-	if progressBar != nil {
-		reader = io.TeeReader(resp.Body, progressBar)
-	} else {
-		reader = resp.Body
-	}
+	reader := io.TeeReader(resp.Body, progressBar)
+
+	// Note: Uncomment this to show the progress bar only when verbose mode is enabled
+	// var progressBar *_progress.ProgressBar
+	// if _logger.Get().Level() >= _logger.VerboseLevel {
+	// 	progressBar = _progress.New(totalSize, fmt.Sprintf("Downloading %s", filename))
+	// 	progressBar.Set(currentSize) // Set current progress for resume
+	// }
+
+	// var reader io.Reader
+	// if progressBar != nil {
+	// 	reader = io.TeeReader(resp.Body, progressBar)
+	// } else {
+	// 	reader = resp.Body
+	// }
 
 	if _, err := io.Copy(file, reader); err != nil {
 		// Ensure the file is closed before returning
