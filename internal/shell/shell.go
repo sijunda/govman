@@ -120,8 +120,8 @@ func (s *BashShell) IsAvailable() bool {
 func (s *BashShell) ConfigFile() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		// Fallback to a reasonable default if we can't get the home directory
-		home = "/tmp" // This is a fallback, in reality, this should be handled more gracefully
+		// Use current directory as fallback instead of /tmp
+		home = "."
 	}
 	// Priority order: .bashrc > .bash_profile > .profile
 	candidates := []string{
@@ -207,8 +207,8 @@ func (s *ZshShell) IsAvailable() bool {
 func (s *ZshShell) ConfigFile() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		// Fallback to a reasonable default if we can't get the home directory
-		home = "/tmp" // This is a fallback, in reality, this should be handled more gracefully
+		// Use current directory as fallback instead of /tmp
+		home = "."
 	}
 	return filepath.Join(home, ".zshrc")
 }

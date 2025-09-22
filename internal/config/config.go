@@ -92,8 +92,7 @@ func Load(configFile string) (*Config, error) {
 func (c *Config) setDefaults() {
 	homeDir, err := getHomeDir()
 	if err != nil {
-		// Fallback to a reasonable default if we can't get the home directory
-		homeDir = "/tmp" // This is a fallback, in reality, this should be handled more gracefully
+		homeDir = "." // Use current directory as fallback instead of /tmp
 	}
 	govmanDir := filepath.Join(homeDir, ".govman")
 
@@ -181,13 +180,24 @@ func (c *Config) GetCurrentSymlink() string {
 }
 
 func getHomeDir() (string, error) {
+	var homeDir string
 	if runtime.GOOS == "windows" {
-		return os.Getenv("USERPROFILE"), nil
+		homeDir = os.Getenv("USERPROFILE")
+	} else {
+		homeDir = os.Getenv("HOME")
 	}
-	return os.Getenv("HOME"), nil
+
+	if homeDir == "" {
+		return "", fmt.Errorf("unable to determine home directory: HOME/USERPROFILE environment variable is not set")
+	}
+
+	return homeDir, nil
 }
 
 func expandPath(path string) (string, error) {
+	if path == "" {
+		return "", fmt.Errorf("empty path provided")
+	}
 	if path[0] == '~' {
 		homeDir, err := getHomeDir()
 		if err != nil {

@@ -113,7 +113,8 @@ func runSelfUpdate(checkOnly, force, prerelease bool) error {
 
 	// Download the binary
 	_logger.Verbose("Downloading binary")
-	resp, err := http.Get(downloadURL)
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Get(downloadURL)
 	if err != nil {
 		_logger.ErrorWithHelp("Failed to download binary", "Check your internet connection and try again.", "")
 		return fmt.Errorf("failed to download binary: %w", err)
@@ -183,7 +184,8 @@ func getLatestRelease(includePrerelease bool) (*GitHubRelease, error) {
 		url = "https://api.github.com/repos/sijunda/govman/releases?per_page=1"
 	}
 
-	resp, err := http.Get(url)
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Get(url)
 	if err != nil {
 		return nil, err
 	}

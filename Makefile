@@ -52,10 +52,8 @@ LDFLAGS = -ldflags "\
 	-s -w \
 	-X '$(MODULE_NAME)/internal/version.Version=$(VERSION)' \
 	-X '$(MODULE_NAME)/internal/version.Commit=$(COMMIT)' \
-	-X '$(MODULE_NAME)/internal/version.Branch=$(BRANCH)' \
 	-X '$(MODULE_NAME)/internal/version.Date=$(DATE)' \
-	-X '$(MODULE_NAME)/internal/version.BuildBy=$(BUILD_BY)' \
-	-X '$(MODULE_NAME)/internal/version.GoVersion=$(GO_VERSION)'"
+	-X '$(MODULE_NAME)/internal/version.BuildBy=$(BUILD_BY)'"
 
 # Build tags
 BUILD_TAGS ?= netgo

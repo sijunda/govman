@@ -144,10 +144,17 @@ func (d *Downloader) downloadFile(url string, fileInfo *_golang.File) (string, e
 	}
 
 	progressBar := _progress.New(totalSize, fmt.Sprintf("Downloading %s", filename))
-	progressBar.Set(currentSize) // Set current progress for resume
+	if progressBar != nil {
+		progressBar.Set(currentSize) // Set current progress for resume
+	}
 
 	// Download with progress
-	reader := io.TeeReader(resp.Body, progressBar)
+	var reader io.Reader
+	if progressBar != nil {
+		reader = io.TeeReader(resp.Body, progressBar)
+	} else {
+		reader = resp.Body
+	}
 
 	// Note: Uncomment this to show the progress bar only when verbose mode is enabled
 	// var progressBar *_progress.ProgressBar

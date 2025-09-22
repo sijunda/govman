@@ -186,9 +186,19 @@ func GetVersionInfo(installPath string) (*VersionInfo, error) {
 // CompareVersions compares two version strings
 // Returns: 1 if v1 > v2, -1 if v1 < v2, 0 if equal
 func CompareVersions(v1, v2 string) int {
+	// Quick equality check
+	if v1 == v2 {
+		return 0
+	}
+
 	// Normalize versions (remove prefixes, handle rc/beta)
 	v1 = normalizeVersion(v1)
 	v2 = normalizeVersion(v2)
+
+	// Check again after normalization
+	if v1 == v2 {
+		return 0
+	}
 
 	parts1 := parseVersion(v1)
 	parts2 := parseVersion(v2)
@@ -323,8 +333,13 @@ func fetchReleases() ([]Release, error) {
 	}
 	cacheMutex.RUnlock()
 
+	// Create HTTP client with timeout
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+
 	// Fetch from API
-	resp, err := http.Get(GoReleasesAPI)
+	resp, err := client.Get(GoReleasesAPI)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch releases: %w", err)
 	}
@@ -358,7 +373,8 @@ func getDirSize(path string) (int64, error) {
 
 	err := filepath.Walk(path, func(_ string, info os.FileInfo, err error) error {
 		if err != nil {
-			return err
+			// Continue walking even if some files can't be accessed
+			return nil
 		}
 		if !info.IsDir() {
 			size += info.Size()
