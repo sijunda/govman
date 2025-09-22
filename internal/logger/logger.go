@@ -26,9 +26,10 @@ const (
 
 // Logger handles all user-facing messages
 type Logger struct {
-	level  LogLevel
-	writer io.Writer
-	mutex  sync.Mutex
+	level         LogLevel
+	normalWriter  io.Writer
+	verboseWriter io.Writer
+	mutex         sync.Mutex
 }
 
 // Timer represents a timer for measuring operation duration
@@ -40,7 +41,8 @@ type Timer struct {
 // New creates a new Logger instance
 func New() *Logger {
 	l := &Logger{
-		writer: os.Stderr,
+		normalWriter:  os.Stderr,
+		verboseWriter: os.Stderr,
 	}
 
 	// Set log level based on flags
@@ -62,6 +64,20 @@ func (l *Logger) SetLevel(level LogLevel) {
 	l.level = level
 }
 
+// SetNormalWriter sets the writer for normal (user-facing) output
+func (l *Logger) SetNormalWriter(writer io.Writer) {
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
+	l.normalWriter = writer
+}
+
+// SetVerboseWriter sets the writer for verbose (technical) output
+func (l *Logger) SetVerboseWriter(writer io.Writer) {
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
+	l.verboseWriter = writer
+}
+
 // Level returns the current logging level
 func (l *Logger) Level() LogLevel {
 	l.mutex.Lock()
@@ -69,19 +85,33 @@ func (l *Logger) Level() LogLevel {
 	return l.level
 }
 
+// NormalWriter returns the writer for normal (user-facing) output
+func (l *Logger) NormalWriter() io.Writer {
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
+	return l.normalWriter
+}
+
+// VerboseWriter returns the writer for verbose (technical) output
+func (l *Logger) VerboseWriter() io.Writer {
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
+	return l.verboseWriter
+}
+
 // Error logs an error message (always shown to users)
 func (l *Logger) Error(format string, args ...interface{}) {
 	if l.level >= QuietLevel {
-		fmt.Fprintf(l.writer, "❌ Error: "+format+"\n", args...)
+		fmt.Fprintf(l.normalWriter, "❌ Error: "+format+"\n", args...)
 	}
 }
 
 // ErrorWithHelp logs an error message with additional help text
 func (l *Logger) ErrorWithHelp(errorMsg, helpMsg string, args ...interface{}) {
 	if l.level >= QuietLevel {
-		fmt.Fprintf(l.writer, "❌ Error: "+errorMsg+"\n", args...)
+		fmt.Fprintf(l.normalWriter, "❌ Error: "+errorMsg+"\n", args...)
 		if helpMsg != "" {
-			fmt.Fprintf(l.writer, "💡 Help: %s\n", helpMsg)
+			fmt.Fprintf(l.normalWriter, "💡 Help: %s\n", helpMsg)
 		}
 	}
 }
@@ -108,21 +138,21 @@ func (l *Logger) StopTimer(t *Timer) {
 // Info logs an informational message
 func (l *Logger) Info(format string, args ...interface{}) {
 	if l.level >= NormalLevel {
-		fmt.Fprintf(l.writer, "ℹ️  "+format+"\n", args...)
+		fmt.Fprintf(l.normalWriter, "ℹ️  "+format+"\n", args...)
 	}
 }
 
 // Success logs a success message
 func (l *Logger) Success(format string, args ...interface{}) {
 	if l.level >= NormalLevel {
-		fmt.Fprintf(l.writer, "✅ "+format+"\n", args...)
+		fmt.Fprintf(l.normalWriter, "✅ "+format+"\n", args...)
 	}
 }
 
 // Warning logs a warning message
 func (l *Logger) Warning(format string, args ...interface{}) {
 	if l.level >= NormalLevel {
-		fmt.Fprintf(l.writer, "⚠️  "+format+"\n", args...)
+		fmt.Fprintf(l.normalWriter, "⚠️  "+format+"\n", args...)
 	}
 }
 
@@ -130,7 +160,7 @@ func (l *Logger) Warning(format string, args ...interface{}) {
 // These are internal logs for debugging and detailed information
 func (l *Logger) Verbose(format string, args ...interface{}) {
 	if l.level >= VerboseLevel {
-		fmt.Fprintf(l.writer, "🔍 [VERBOSE] "+format+"\n", args...)
+		fmt.Fprintf(l.verboseWriter, "🔍 [VERBOSE] "+format+"\n", args...)
 	}
 }
 
@@ -138,49 +168,49 @@ func (l *Logger) Verbose(format string, args ...interface{}) {
 // These are internal logs for developers and advanced troubleshooting
 func (l *Logger) Debug(format string, args ...interface{}) {
 	if l.level >= VerboseLevel {
-		fmt.Fprintf(l.writer, "🐛 [DEBUG] "+format+"\n", args...)
+		fmt.Fprintf(l.verboseWriter, "🐛 [DEBUG] "+format+"\n", args...)
 	}
 }
 
 // Progress logs a progress message (shown to users in normal mode)
 func (l *Logger) Progress(format string, args ...interface{}) {
 	if l.level >= NormalLevel {
-		fmt.Fprintf(l.writer, "🔄 "+format+"\n", args...)
+		fmt.Fprintf(l.normalWriter, "🔄 "+format+"\n", args...)
 	}
 }
 
 // Step logs a step in a process (internal logging)
 func (l *Logger) Step(format string, args ...interface{}) {
 	if l.level >= VerboseLevel {
-		fmt.Fprintf(l.writer, "📋 "+format+"\n", args...)
+		fmt.Fprintf(l.verboseWriter, "📋 "+format+"\n", args...)
 	}
 }
 
 // Download logs a download message (shown to users in normal mode)
 func (l *Logger) Download(format string, args ...interface{}) {
 	if l.level >= NormalLevel {
-		fmt.Fprintf(l.writer, "📦 "+format+"\n", args...)
+		fmt.Fprintf(l.normalWriter, "📦 "+format+"\n", args...)
 	}
 }
 
 // Extract logs an extraction message (shown to users in normal mode)
 func (l *Logger) Extract(format string, args ...interface{}) {
 	if l.level >= NormalLevel {
-		fmt.Fprintf(l.writer, "📂 "+format+"\n", args...)
+		fmt.Fprintf(l.normalWriter, "📂 "+format+"\n", args...)
 	}
 }
 
 // Verify logs a verification message (shown to users in normal mode)
 func (l *Logger) Verify(format string, args ...interface{}) {
 	if l.level >= NormalLevel {
-		fmt.Fprintf(l.writer, "🔍 "+format+"\n", args...)
+		fmt.Fprintf(l.normalWriter, "🔍 "+format+"\n", args...)
 	}
 }
 
 // InternalProgress logs an internal progress message (only shown in verbose mode)
 func (l *Logger) InternalProgress(format string, args ...interface{}) {
 	if l.level >= VerboseLevel {
-		fmt.Fprintf(l.writer, "🔄 [INTERNAL] "+format+"\n", args...)
+		fmt.Fprintf(l.verboseWriter, "🔄 [INTERNAL] "+format+"\n", args...)
 	}
 }
 

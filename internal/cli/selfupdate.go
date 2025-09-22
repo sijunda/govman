@@ -37,56 +37,78 @@ func newSelfUpdateCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "selfupdate",
-		Short: "Update govman to the latest version",
-		Long: `Check for and install the latest version of govman.
+		Short: "🔄 Update govman to the latest version with smart management",
+		Long: `Automatically check for and install the latest version of govman.
 
-Examples:
-  govman selfupdate              # Update to latest stable version
-  govman selfupdate --check      # Check for updates without installing
-  govman selfupdate --prerelease # Include prereleases
-  govman selfupdate --force      # Force update even if already latest`,
+🚀 Smart Update Features:
+  • Automatic platform detection and binary selection
+  • Safe backup and rollback on failure
+  • Integrity verification and secure downloads
+  • Support for stable and pre-release versions
+  • Non-disruptive updates with permission handling
+  • Detailed release notes and changelog display
+
+💡 Examples:
+  govman selfupdate                    # Update to latest stable
+  govman selfupdate --check            # Check without installing
+  govman selfupdate --prerelease       # Include pre-releases
+  govman selfupdate --force            # Force update even if latest`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runSelfUpdate(checkOnly, force, prerelease)
 		},
 	}
 
-	cmd.Flags().BoolVar(&checkOnly, "check", false, "check for updates without installing")
-	cmd.Flags().BoolVar(&force, "force", false, "force update even if already latest")
-	cmd.Flags().BoolVar(&prerelease, "prerelease", false, "include prereleases")
+	cmd.Flags().BoolVar(&checkOnly, "check", false, "🔍 Check for updates without installing (dry run)")
+	cmd.Flags().BoolVar(&force, "force", false, "🔄 Force update even if already on latest version")
+	cmd.Flags().BoolVar(&prerelease, "prerelease", false, "🧪 Include pre-release versions (beta, rc)")
 
 	return cmd
 }
 
 func runSelfUpdate(checkOnly, force, prerelease bool) error {
-	_logger.Info("Checking for govman updates...")
+	_logger.Info("🔍 Checking for govman updates...")
+	_logger.Progress("Contacting GitHub API for latest release information")
 
-	_logger.Verbose("Retrieving latest release information")
+	_logger.Verbose("Retrieving latest release information from GitHub")
 	latest, err := getLatestRelease(prerelease)
 	if err != nil {
-		_logger.ErrorWithHelp("Failed to check for updates", "Check your internet connection and try again.", "")
+		_logger.ErrorWithHelp("Unable to fetch update information", "Verify your internet connection and that GitHub API is accessible.", "")
 		return fmt.Errorf("failed to check for updates: %w", err)
 	}
 
 	current := _version.BuildVersion()
 	if current == "dev" {
-		_logger.Info("Development version detected, skipping update check")
+		_logger.Warning("🛠️ Development version detected - updates are not available")
+		_logger.Info("💡 You're using a development build. Update manually from source.")
 		return nil
 	}
 
-	_logger.Info("Current version: %s", current)
-	_logger.Info("Latest version:  %s", latest.TagName)
+	_logger.Info("📋 Version Information:")
+	_logger.Info("  Current: %s", current)
+	_logger.Info("  Latest:  %s", latest.TagName)
+
+	if latest.PublishedAt.After(time.Time{}) {
+		_logger.Info("  Released: %s", latest.PublishedAt.Format("January 2, 2006"))
+	}
 
 	if !force && latest.TagName == current {
-		_logger.Success("You are already using the latest version!")
+		_logger.Success("✅ You are already using the latest version!")
+		_logger.Info("💡 Use --force to reinstall the current version")
 		return nil
 	}
 
 	if checkOnly {
 		if latest.TagName != current {
-			_logger.Info("A new version is available: %s", latest.TagName)
+			_logger.Info("🎆 A new version is available: %s → %s", current, latest.TagName)
 			if latest.Body != "" {
-				_logger.Info("\nRelease notes:\n%s", latest.Body)
+				_logger.Info("📝 Release Notes:")
+				_logger.Info(strings.Repeat("─", 40))
+				_logger.Info("%s", latest.Body)
+				_logger.Info(strings.Repeat("─", 40))
 			}
+			_logger.Info("💡 Run 'govman selfupdate' to install this version")
+		} else {
+			_logger.Success("✅ No updates available - you're on the latest version")
 		}
 		return nil
 	}

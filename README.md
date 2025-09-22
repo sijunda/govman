@@ -204,6 +204,7 @@ The project includes various test targets:
 *   **CLI Framework:** Built with the Cobra library for structured command-line interfaces.
 *   **Configuration:** Uses Viper for flexible application configuration.
 *   **Version Information:** Build-time version, commit, and branch information are injected into the binary using `ldflags`.
+*   **Logging System:** Features a dual-output logging system with separate user-facing and technical logs. See [Logging Documentation](docs/logging.md) for details.
 
 ## Contributing
 

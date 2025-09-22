@@ -30,7 +30,7 @@ func createLongDescription() string {
 	features := []string{
 		"⚡ Lightning-fast installation and switching between Go versions",
 		"🎯 Zero configuration - works out of the box, no setup required",
-		"📁 Project-specific versions with .go-version file support",
+		"📁 Project-specific versions with .govman-version file support",
 		"🚫 No admin/sudo required - fully userspace installation",
 		"💾 Intelligent caching with offline mode support",
 		"📦 Parallel downloads with automatic resume on failure",
