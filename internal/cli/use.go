@@ -55,7 +55,8 @@ func newUseCmd() *cobra.Command {
 			if version != "default" {
 				// Verify the version is installed first
 				if !mgr.IsInstalled(version) {
-					_logger.ErrorWithHelp("Go version %s is not installed", "Install it first with 'govman install %s', or check available versions with 'govman list'.", version, version)
+					helpMsg := fmt.Sprintf("Install it first with 'govman install %s', or check available versions with 'govman list'.", version)
+					_logger.ErrorWithHelp("Go version %s is not installed", helpMsg, version)
 					return fmt.Errorf("version %s not installed", version)
 				}
 			}

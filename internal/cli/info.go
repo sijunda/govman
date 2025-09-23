@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -26,7 +27,7 @@ func newInfoCmd() *cobra.Command {
   • Release notes and changelog links (when available)
 
 💡 Perfect for debugging installation issues and verifying setups.`,
-		Args:  cobra.ExactArgs(1),
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			version := args[0]
 			mgr := _manager.New(getConfig())
@@ -34,7 +35,8 @@ func newInfoCmd() *cobra.Command {
 			_logger.Verbose("Gathering comprehensive version information for Go %s", version)
 			info, err := mgr.Info(version)
 			if err != nil {
-				_logger.ErrorWithHelp("Unable to retrieve information for Go %s", "Verify the version is installed with 'govman list', or install it with 'govman install %s'.", version, version)
+				helpMsg := fmt.Sprintf("Verify the version is installed with 'govman list', or install it with 'govman install %s'.", version)
+				_logger.ErrorWithHelp("Unable to retrieve information for Go %s", helpMsg, version)
 				return err
 			}
 
