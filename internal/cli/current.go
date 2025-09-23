@@ -48,7 +48,7 @@ func newCurrentCmd() *cobra.Command {
 			_logger.Info(strings.Repeat("─", 50))
 			_logger.Info("✅ Version:        Go %s", info.Version)
 			_logger.Info("📁 Install Path:    %s", info.Path)
-			_logger.Info("🖥️  Platform:        %s/%s", info.OS, info.Arch)
+			_logger.Info("🖥️ Platform:        %s/%s", info.OS, info.Arch)
 			_logger.Info("📅 Installed:       %s", info.InstallDate.Format("2006-01-02 15:04:05 MST"))
 			_logger.Info("💾 Disk Usage:      %s", _util.FormatBytes(info.Size))
 

@@ -102,9 +102,19 @@ func (m *Manager) Uninstall(version string) error {
 
 // Use switches to a Go version
 func (m *Manager) Use(version string, setDefault, setLocal bool) error {
-	_logger.InternalProgress("Checking if version is installed")
-	if !m.IsInstalled(version) {
-		return fmt.Errorf("go version %s is not installed. Run 'govman install %s' first", version, version)
+	// Handle special "default" version
+	if version == "default" {
+		// Get the default version from the symlink
+		defaultVersion, err := m.CurrentGlobal()
+		if err != nil {
+			return fmt.Errorf("failed to get default version: %w", err)
+		}
+		version = defaultVersion
+	} else {
+		_logger.InternalProgress("Checking if version is installed")
+		if !m.IsInstalled(version) {
+			return fmt.Errorf("go version %s is not installed. Run 'govman install %s' first", version, version)
+		}
 	}
 
 	// Set local version (project-specific)
@@ -405,4 +415,9 @@ func (m *Manager) getLocalVersion() string {
 // DefaultVersion returns the default Go version from the config
 func (m *Manager) DefaultVersion() string {
 	return m.config.DefaultVersion
+}
+
+// GetDefaultVersionFromSymlink returns the version pointed to by the symlink
+func (m *Manager) GetDefaultVersionFromSymlink() (string, error) {
+	return m.CurrentGlobal()
 }

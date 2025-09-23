@@ -51,10 +51,13 @@ func newUseCmd() *cobra.Command {
 			version := args[0]
 			mgr := _manager.New(getConfig())
 
-			// Verify the version is installed first
-			if !mgr.IsInstalled(version) {
-				_logger.ErrorWithHelp("Go version %s is not installed", "Install it first with 'govman install %s', or check available versions with 'govman list'.", version, version)
-				return fmt.Errorf("version %s not installed", version)
+			// Handle special "default" version without checking if it's installed
+			if version != "default" {
+				// Verify the version is installed first
+				if !mgr.IsInstalled(version) {
+					_logger.ErrorWithHelp("Go version %s is not installed", "Install it first with 'govman install %s', or check available versions with 'govman list'.", version, version)
+					return fmt.Errorf("version %s not installed", version)
+				}
 			}
 
 			_logger.Verbose("Activating Go %s with mode: %s", version, getActivationMode(setDefault, setLocal))
