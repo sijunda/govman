@@ -28,7 +28,7 @@ func main() {
 
 	// Log user-facing messages (these will go to normal output)
 	l.Info("Application started successfully")
-	l.Download("Downloading Go 1.21.0")
+	l.Download("Downloading Go 1.25.1")
 	l.Extract("Extracting archive...")
 	l.Success("Installation completed successfully")
 	l.Warning("This is a warning message")

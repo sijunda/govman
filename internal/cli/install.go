@@ -27,8 +27,8 @@ func newInstallCmd() *cobra.Command {
 
 💡 Examples:
   govman install latest              # Latest stable release
-  govman install 1.21.5              # Specific version
-  govman install 1.21.5 1.20.12      # Multiple versions
+  govman install 1.25.1              # Specific version
+  govman install 1.25.1 1.20.12      # Multiple versions
   govman install 1.22rc1             # Pre-release version`,
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -90,8 +90,8 @@ func newInstallCmd() *cobra.Command {
 
 func newUninstallCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "uninstall <version>",
-		Short:   "🗑️ Safely remove Go versions with cleanup",
+		Use:   "uninstall <version>",
+		Short: "🗑️ Safely remove Go versions with cleanup",
 		Long: `Completely remove an installed Go version from your system.
 
 🔒 Safety features:

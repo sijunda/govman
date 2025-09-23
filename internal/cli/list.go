@@ -29,8 +29,8 @@ func newListCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:     "list",
-		Short:   "📋 List and manage Go versions with detailed information",
+		Use:   "list",
+		Short: "📋 List and manage Go versions with detailed information",
 		Long: `Display comprehensive information about Go versions on your system.
 
 🔍 Features:
@@ -59,7 +59,7 @@ func newListCmd() *cobra.Command {
 	cmd.Flags().BoolVarP(&remote, "remote", "r", false, "📡 List available versions from Go's official releases")
 	cmd.Flags().BoolVar(&stableOnly, "stable-only", false, "🎯 Show only stable, production-ready versions (remote only)")
 	cmd.Flags().BoolVar(&beta, "beta", false, "🧪 Include beta/rc versions for early testing (remote only)")
-	cmd.Flags().StringVar(&pattern, "pattern", "", "🔍 Filter versions using glob patterns like '1.21*' or '1.2?' (remote only)")
+	cmd.Flags().StringVar(&pattern, "pattern", "", "🔍 Filter versions using glob patterns like '1.25*' or '1.2?' (remote only)")
 
 	return cmd
 }
