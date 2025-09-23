@@ -20,12 +20,17 @@ var (
 	releasesCache []Release
 	cacheMutex    sync.RWMutex
 	cacheExpiry   time.Time
-	cacheDuration = 10 * time.Minute
 )
 
 const (
-	GoReleasesAPI = "https://go.dev/dl/?mode=json&include=all"
-	GoDownloadURL = "https://go.dev/dl/%s"
+	GoDownloadURLTemplate = "%s"
+)
+
+var (
+	// Default values that can be overridden
+	defaultGoReleasesAPI   = "https://go.dev/dl/?mode=json&include=all"
+	defaultCacheDuration   = 10 * time.Minute
+	defaultGoDownloadURL   = "https://go.dev/dl/%s"
 )
 
 type Release struct {
@@ -55,7 +60,11 @@ type VersionInfo struct {
 
 // GetAvailableVersions fetches all available Go versions
 func GetAvailableVersions(includeUnstable bool) ([]string, error) {
-	releases, err := fetchReleases()
+	return GetAvailableVersionsWithConfig(includeUnstable, defaultGoReleasesAPI, defaultCacheDuration)
+}
+
+func GetAvailableVersionsWithConfig(includeUnstable bool, apiURL string, cacheDuration time.Duration) ([]string, error) {
+	releases, err := fetchReleasesWithConfig(apiURL, cacheDuration)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +89,11 @@ func GetAvailableVersions(includeUnstable bool) ([]string, error) {
 
 // GetDownloadURL returns the download URL for a specific version
 func GetDownloadURL(version string) (string, error) {
-	releases, err := fetchReleases()
+	return GetDownloadURLWithConfig(version, defaultGoReleasesAPI, defaultCacheDuration, defaultGoDownloadURL)
+}
+
+func GetDownloadURLWithConfig(version string, apiURL string, cacheDuration time.Duration, downloadURL string) (string, error) {
+	releases, err := fetchReleasesWithConfig(apiURL, cacheDuration)
 	if err != nil {
 		return "", err
 	}
@@ -100,7 +113,7 @@ func GetDownloadURL(version string) (string, error) {
 
 		for _, file := range release.Files {
 			if file.OS == goos && file.Arch == resolvedArch && file.Kind == "archive" {
-				return fmt.Sprintf(GoDownloadURL, file.Filename), nil
+				return fmt.Sprintf(downloadURL, file.Filename), nil
 			}
 		}
 	}
@@ -124,7 +137,11 @@ func resolveArch(version, goos, goarch string) string {
 
 // GetFileInfo returns file information for a specific version
 func GetFileInfo(version string) (*File, error) {
-	releases, err := fetchReleases()
+	return GetFileInfoWithConfig(version, defaultGoReleasesAPI, defaultCacheDuration)
+}
+
+func GetFileInfoWithConfig(version string, apiURL string, cacheDuration time.Duration) (*File, error) {
+	releases, err := fetchReleasesWithConfig(apiURL, cacheDuration)
 	if err != nil {
 		return nil, err
 	}
@@ -325,6 +342,10 @@ func extractPrereleaseNumber(prerelease string) int {
 }
 
 func fetchReleases() ([]Release, error) {
+	return fetchReleasesWithConfig(defaultGoReleasesAPI, defaultCacheDuration)
+}
+
+func fetchReleasesWithConfig(apiURL string, cacheDuration time.Duration) ([]Release, error) {
 	// Check cache first
 	cacheMutex.RLock()
 	if time.Now().Before(cacheExpiry) && releasesCache != nil {
@@ -339,7 +360,7 @@ func fetchReleases() ([]Release, error) {
 	}
 
 	// Fetch from API
-	resp, err := client.Get(GoReleasesAPI)
+	resp, err := client.Get(apiURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch releases: %w", err)
 	}

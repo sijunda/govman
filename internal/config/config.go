@@ -18,6 +18,10 @@ type Config struct {
 	Mirror         MirrorConfig     `mapstructure:"mirror"`
 	AutoSwitch     AutoSwitchConfig `mapstructure:"auto_switch"`
 	Shell          ShellConfig      `mapstructure:"shell"`
+	GoReleases     GoReleasesConfig `mapstructure:"go_releases"`
+	SelfUpdate     SelfUpdateConfig `mapstructure:"self_update"`
+	Quiet          bool             `mapstructure:"quiet"`
+	Verbose        bool             `mapstructure:"verbose"`
 	configPath     string
 }
 
@@ -26,6 +30,7 @@ type DownloadConfig struct {
 	MaxConnections int           `mapstructure:"max_connections"`
 	Timeout        time.Duration `mapstructure:"timeout"`
 	RetryCount     int           `mapstructure:"retry_count"`
+	RetryDelay     time.Duration `mapstructure:"retry_delay"`
 }
 
 type MirrorConfig struct {
@@ -41,6 +46,17 @@ type AutoSwitchConfig struct {
 type ShellConfig struct {
 	AutoDetect bool `mapstructure:"auto_detect"`
 	Completion bool `mapstructure:"completion"`
+}
+
+type GoReleasesConfig struct {
+	APIURL      string        `mapstructure:"api_url"`
+	DownloadURL string        `mapstructure:"download_url"`
+	CacheExpiry time.Duration `mapstructure:"cache_expiry"`
+}
+
+type SelfUpdateConfig struct {
+	GitHubAPIURL        string `mapstructure:"github_api_url"`
+	GitHubReleasesURL   string `mapstructure:"github_releases_url"`
 }
 
 func Load(configFile string) (*Config, error) {
@@ -64,11 +80,17 @@ func Load(configFile string) (*Config, error) {
 	viper.SetConfigFile(cfg.configPath)
 	viper.SetConfigType("yaml")
 
-	// Read config file if it exists
-	if _, err := os.Stat(cfg.configPath); err == nil {
-		if err := viper.ReadInConfig(); err != nil {
-			return nil, fmt.Errorf("failed to read config file: %w", err)
+	// Check if config file exists
+	if _, err := os.Stat(cfg.configPath); os.IsNotExist(err) {
+		// Config file doesn't exist, create it with default values
+		if err := cfg.Save(); err != nil {
+			return nil, fmt.Errorf("failed to create config file with default values: %w", err)
 		}
+	}
+	
+	// Read config file (it should now exist)
+	if err := viper.ReadInConfig(); err != nil {
+		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
 
 	// Unmarshal config
@@ -99,12 +121,15 @@ func (c *Config) setDefaults() {
 	c.InstallDir = filepath.Join(govmanDir, "versions")
 	c.CacheDir = filepath.Join(govmanDir, "cache")
 	c.DefaultVersion = ""
+	c.Quiet = false
+	c.Verbose = false
 
 	c.Download = DownloadConfig{
 		Parallel:       true,
 		MaxConnections: 4,
 		Timeout:        300 * time.Second,
 		RetryCount:     3,
+		RetryDelay:     5 * time.Second,
 	}
 
 	c.Mirror = MirrorConfig{
@@ -120,6 +145,17 @@ func (c *Config) setDefaults() {
 	c.Shell = ShellConfig{
 		AutoDetect: true,
 		Completion: true,
+	}
+
+	c.GoReleases = GoReleasesConfig{
+		APIURL:      "https://go.dev/dl/?mode=json&include=all",
+		DownloadURL: "https://go.dev/dl/%s",
+		CacheExpiry: 10 * time.Minute,
+	}
+
+	c.SelfUpdate = SelfUpdateConfig{
+		GitHubAPIURL:      "https://api.github.com/repos/sijunda/govman/releases/latest",
+		GitHubReleasesURL: "https://api.github.com/repos/sijunda/govman/releases?per_page=1",
 	}
 }
 
@@ -157,6 +193,19 @@ func (c *Config) Save() error {
 	if err := os.MkdirAll(configDir, 0755); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
+
+	// Sync struct fields with viper before saving
+	viper.Set("default_version", c.DefaultVersion)
+	viper.Set("install_dir", c.InstallDir)
+	viper.Set("cache_dir", c.CacheDir)
+	viper.Set("quiet", c.Quiet)
+	viper.Set("verbose", c.Verbose)
+	viper.Set("download", c.Download)
+	viper.Set("mirror", c.Mirror)
+	viper.Set("auto_switch", c.AutoSwitch)
+	viper.Set("shell", c.Shell)
+	viper.Set("go_releases", c.GoReleases)
+	viper.Set("self_update", c.SelfUpdate)
 
 	// Write config file
 	if err := viper.WriteConfigAs(c.configPath); err != nil {

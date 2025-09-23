@@ -38,7 +38,9 @@ func (d *Downloader) Download(url, installDir, version string) error {
 	// Get file info for verification
 	_logger.InternalProgress("Retrieving file information")
 	timer := _logger.StartTimer("file info retrieval")
-	fileInfo, err := _golang.GetFileInfo(version)
+	fileInfo, err := _golang.GetFileInfoWithConfig(version,
+		d.config.GoReleases.APIURL,
+		d.config.GoReleases.CacheExpiry)
 	if err != nil {
 		_logger.StopTimer(timer)
 		return fmt.Errorf("failed to get file info: %w", err)
@@ -122,7 +124,7 @@ func (d *Downloader) downloadFile(url string, fileInfo *_golang.File) (string, e
 			if attempt < d.config.Download.RetryCount-1 {
 				_logger.Warning("Download failed, retrying in 5 seconds... (%d/%d)",
 					attempt+1, d.config.Download.RetryCount)
-				time.Sleep(5 * time.Second)
+				time.Sleep(d.config.Download.RetryDelay)
 				continue
 			}
 			return "", fmt.Errorf("failed to download after %d attempts: %w",

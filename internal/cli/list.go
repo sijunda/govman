@@ -80,6 +80,7 @@ func listInstalledVersions(mgr *_manager.Manager) error {
 	}
 
 	current, _ := mgr.Current()
+	defaultVersion := mgr.DefaultVersion()
 
 	_logger.Info("📋 Installed Go Versions (%d total):", len(versions))
 	_logger.Info(strings.Repeat("─", 60))
@@ -99,10 +100,16 @@ func listInstalledVersions(mgr *_manager.Manager) error {
 			continue
 		}
 
+		// Add default indicator if this version is the default
+		versionDisplay := version
+		if version == defaultVersion && defaultVersion != "" {
+			versionDisplay = version + " [default]"
+		}
+
 		size := _util.FormatBytes(info.Size)
 		totalSize += info.Size
 		installDate := info.InstallDate.Format("2006-01-02")
-		_logger.Info("%s%s %-15s %8s   installed: %s", marker, statusIcon, version, size, installDate)
+		_logger.Info("%s%s %-25s %8s   installed: %s", marker, statusIcon, versionDisplay, size, installDate)
 	}
 
 	_logger.Info(strings.Repeat("─", 60))

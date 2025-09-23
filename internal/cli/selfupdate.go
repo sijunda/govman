@@ -201,9 +201,10 @@ func runSelfUpdate(checkOnly, force, prerelease bool) error {
 }
 
 func getLatestRelease(includePrerelease bool) (*GitHubRelease, error) {
-	url := "https://api.github.com/repos/sijunda/govman/releases/latest"
+	cfg := getConfig()
+	url := cfg.SelfUpdate.GitHubAPIURL
 	if includePrerelease {
-		url = "https://api.github.com/repos/sijunda/govman/releases?per_page=1"
+		url = cfg.SelfUpdate.GitHubReleasesURL
 	}
 
 	client := &http.Client{Timeout: 30 * time.Second}

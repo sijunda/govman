@@ -51,7 +51,10 @@ func (m *Manager) Install(version string) error {
 	_logger.Info("Installing Go %s...", resolvedVersion)
 
 	timer = _logger.StartTimer("download URL retrieval")
-	downloadURL, err := _golang.GetDownloadURL(resolvedVersion)
+	downloadURL, err := _golang.GetDownloadURLWithConfig(resolvedVersion,
+		m.config.GoReleases.APIURL,
+		m.config.GoReleases.CacheExpiry,
+		m.config.GoReleases.DownloadURL)
 	if err != nil {
 		_logger.StopTimer(timer)
 		return fmt.Errorf("failed to get download URL: %w", err)
@@ -277,7 +280,9 @@ func (m *Manager) ListInstalled() ([]string, error) {
 
 // ListRemote returns all available Go versions for download
 func (m *Manager) ListRemote(includeUnstable bool) ([]string, error) {
-	return _golang.GetAvailableVersions(includeUnstable)
+	return _golang.GetAvailableVersionsWithConfig(includeUnstable,
+		m.config.GoReleases.APIURL,
+		m.config.GoReleases.CacheExpiry)
 }
 
 // IsInstalled checks if a version is installed
@@ -395,4 +400,9 @@ func (m *Manager) getLocalVersion() string {
 		return ""
 	}
 	return strings.TrimSpace(string(data))
+}
+
+// DefaultVersion returns the default Go version from the config
+func (m *Manager) DefaultVersion() string {
+	return m.config.DefaultVersion
 }

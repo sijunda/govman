@@ -1,0 +1,82 @@
+# Govman Configuration File
+# This is an example configuration file for govman.
+# Copy this file to ~/.govman/config.yaml to use it.
+
+# Default Go version to use when none is specified
+# Leave empty to use the latest installed version
+default_version: ""
+
+# Directory where Go versions will be installed
+# You can use ~ to reference your home directory
+install_dir: ~/.govman/versions
+
+# Directory where downloaded Go archives will be cached
+# You can use ~ to reference your home directory
+cache_dir: ~/.govman/cache
+
+# Download configuration
+download:
+  # Whether to download in parallel
+  parallel: true
+  
+  # Maximum number of parallel connections when downloading
+  max_connections: 4
+  
+  # Download timeout duration (e.g., "5m" for 5 minutes)
+  timeout: 5m0s
+  
+  # Number of times to retry a failed download
+  retry_count: 3
+  
+  # Delay between retry attempts
+  retry_delay: 5s
+
+# Mirror configuration for faster downloads
+mirror:
+  # Whether to use a mirror for downloading Go
+  enabled: false
+  
+  # Mirror URL (official Chinese mirror is used as default)
+  url: https://golang.google.cn/dl/
+
+# Auto-switch configuration
+auto_switch:
+  # Whether to automatically switch Go versions based on project files
+  enabled: true
+  
+  # Name of the file that specifies the Go version for a project
+  project_file: .govman-version
+
+# Shell integration configuration
+shell:
+  # Whether to automatically detect the shell for integration
+  auto_detect: true
+  
+  # Whether to enable shell completion
+  completion: true
+
+# Additional options
+# Whether to suppress most output
+quiet: false
+
+# Whether to show verbose output
+verbose: false
+
+# Go releases configuration
+go_releases:
+  # URL for fetching Go releases information
+  api_url: https://go.dev/dl/?mode=json&include=all
+  
+  # URL template for downloading Go releases
+  download_url: https://go.dev/dl/%s
+  
+  # Cache expiry duration for releases information
+  cache_expiry: 10m0s
+
+# Self-update configuration
+self_update:
+  # GitHub API URL for checking the latest release
+  github_api_url: https://api.github.com/repos/sijunda/govman/releases/latest
+  
+  # GitHub API URL for checking releases (including pre-releases)
+  github_releases_url: https://api.github.com/repos/sijunda/govman/releases?per_page=1
