@@ -1,215 +1,341 @@
-# GOVMAN - Go Version Manager
+<img src="./govman.png" alt="Govman">
 
-## Project Overview
+<p align="center">
+  <img src="https://img.shields.io/github/go-mod/go-version/justjundana/govman" alt="Go Version">
+  <img src="https://img.shields.io/github/license/justjundana/govman" alt="License">
+  <img src="https://img.shields.io/github/v/release/justjundana/govman" alt="Release">
+  <img src="https://img.shields.io/github/downloads/justjundana/govman/total" alt="Downloads">
+</p>
 
-`govman` is a cross-platform command-line interface (CLI) tool designed to simplify the installation, management, and switching of multiple Go programming language versions. It provides features such as:
+<p align="center">
+  <strong>GOVMAN</strong> is a fast, secure, and powerful Go version manager that simplifies your development workflow. 
+  <br><br>
+  Effortlessly install, manage, and switch between multiple Go versions with a single command. Perfect for developers working across projects with different Go requirements—from experimenting with cutting-edge releases to maintaining legacy systems.
+  <br><br>
+  GOVMAN keeps your development environment organized, efficient, and hassle-free.
+</p>
 
-*   **Version Management:** Install, uninstall, and switch between different Go versions.
-*   **Project-Specific Versions:** Support for defining Go versions on a per-project basis using a `.govman-version` file.
-*   **Cross-Platform Compatibility:** Works across Windows, macOS, and Linux operating systems.
-*   **Automatic Shell Integration:** Seamless integration with various shell environments.
-*   **Efficient Downloads:** Utilizes fast parallel downloads with resume capabilities.
+---
 
-The project is written in **Go** and leverages popular Go libraries such as **Cobra** for building the CLI and **Viper** for configuration management. It interacts with the official Go download API to fetch available releases.
+## ✨ **Features**
 
-## Quick Installation
+| Feature | Description |
+|---------|------------|
+| **⚡ Lightning Fast** | Optimized for speed with parallel downloads and smart caching |
+| **🔒 Secure** | Automatic integrity verification and checksum validation |
+| **🔄 Flexible Version Switching** | Session-only, system-wide, or project-specific activation |
+| **🤖 Smart Shell Integration** | Automatic PATH management with support for bash, zsh, fish, and PowerShell |
+| **📦 Complete Management** | Install, uninstall, list, and clean Go versions |
+| **🌐 Cross-Platform** | Works on Linux, macOS, and Windows |
+| **🧰 Rich CLI Experience** | Beautiful terminal output with progress indicators and emojis |
+| **📡 Remote Version Discovery** | Browse and install from official Go releases |
+| **🧹 Disk Optimization** | Clean cache and temporary files to reclaim space |
 
-The easiest way to install `govman` on Unix-like systems (Linux, macOS, FreeBSD) is by using the provided `install.sh` script:
+---
 
+## 📋 **Prerequisites**
+
+Before installing GOVMAN, ensure you have:
+
+- **Operating System**: Linux, macOS, or Windows
+- **Shell**: bash, zsh, fish, or PowerShell
+- **Internet Connection**: Required for downloading Go versions
+
+---
+
+## 🚀 **Installation**
+
+### 🔹 **Automatic Installation** *(Recommended)*
+
+Using **curl**:
 ```bash
-curl -sSL https://raw.githubusercontent.com/sijunda/govman/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/justjundana/govman/main/scripts/install.sh | bash
 ```
 
-This script will download the latest stable release of `govman` for your system, install it to `$HOME/.govman/bin`, and add it to your shell's `PATH`.
-
-## Uninstallation
-
-To uninstall `govman`, you can use the provided `uninstall.sh` script:
-
+Using **wget**:
 ```bash
-curl -sSL https://raw.githubusercontent.com/sijunda/govman/main/scripts/uninstall.sh | bash
+wget -qO- https://raw.githubusercontent.com/justjundana/govman/main/scripts/install.sh | bash
 ```
 
-This script will remove the `govman` binary and remove it from your shell's `PATH`. It will also ask if you want to remove the entire `$HOME/.govman` directory which contains all installed Go versions and cached files.
+### 🔹 **Manual Installation**
 
-## Building and Running
+1. Download the latest release from the [**GitHub releases page**](https://github.com/justjundana/govman/releases)
+2. Extract the binary to a directory in your PATH
+3. Run `govman init` to configure shell integration
 
-The project uses a comprehensive `Makefile` to manage various development and build tasks.
+### 🔹 **Post-Installation**
 
-### Prerequisites
-
-*   Go (version 1.25.1 or higher, as specified in `go.mod`)
-*   `git` (for version information in builds)
-*   `curl` (for the `install.sh` script)
-
-### Development Setup
-
-To set up the development environment and install necessary tools:
+After installation, restart your terminal or run:
 
 ```bash
-make dev-setup
+source ~/.bashrc  # or ~/.bash_profile, ~/.zshrc, etc.
 ```
 
-This command will download Go module dependencies and install development tools like `golangci-lint`, `goreleaser`, `goimports`, etc.
+---
 
-### Dependency Management
+## 💻 **Usage**
 
-To download and verify Go module dependencies:
+### 📌 **Basic Commands**
 
+#### **Installation Commands**
 ```bash
-make deps
+# Install the latest stable Go version
+govman install latest
+
+# Install a specific Go version
+govman install 1.25.1
+
+# Install multiple versions at once
+govman install 1.25.1 1.24.5 1.23.8
 ```
 
-### Building
-
-*   **Build for the current platform:**
-    ```bash
-    make build
-    ```
-    The executable will be placed in the `build/` directory.
-
-*   **Build for all supported platforms:**
-    ```bash
-    make build-all
-    ```
-    Cross-compiled binaries will be placed in the `dist/` directory.
-
-### Installation (from source)
-
-*   **Install to your GOPATH/bin:**
-    ```bash
-    make install
-    ```
-
-*   **Install to `/usr/local/bin` (requires `sudo`):**
-    ```bash
-    make install-local
-    ```
-
-### Running
-
-After installation, you can run `govman` commands from your terminal:
-
+#### **Version Management**
 ```bash
-govman --help
+# List installed versions
+govman list
+
+# List available versions for installation
+govman list --remote
+
+# View detailed information about a version
+govman info 1.25.1
+
+# Check current active version
+govman current
 ```
 
-## Usage
+#### **Version Switching**
+```bash
+# Switch to a specific version (session-only)
+govman use 1.25.1
 
-Here are some common `govman` commands:
+# Set a version as system default
+govman use 1.25.1 --default
 
-*   **Install a specific Go version:**
-    ```bash
-    govman install 1.20.1
-    govman install latest
-    ```
+# Set a version for the current project
+govman use 1.25.1 --local
+```
 
-*   **Switch to a specific Go version:**
-    ```bash
-    govman use 1.20.1
-    ```
+#### **Maintenance Commands**
+```bash
+# Uninstall a version
+govman uninstall 1.25.1
 
-*   **Set a Go version as default:**
-    ```bash
-    govman use 1.20.1 --default
-    ```
+# Clean download cache
+govman clean
 
-*   **Set a project-specific Go version:**
-    ```bash
-    govman use 1.20.1 --local
-    ```
+# Update govman itself
+govman selfupdate
+```
 
-*   **List installed Go versions:**
-    ```bash
-    govman list
-    ```
+### 🎯 **Advanced Usage**
 
-*   **List available Go versions for download:**
-    ```bash
-    govman list --remote
-    ```
+#### **Project-Specific Versions**
 
-*   **Uninstall a Go version:**
-    ```bash
-    govman uninstall 1.20.1
-    ```
+Create a `.govman-version` file in your project directory using either method:
 
-*   **Show current active Go version:**
-    ```bash
-    govman current
-    ```
+**Method 1** - Using govman command:
+```bash
+govman use 1.25.1 --local
+```
 
-*   **Clean cached Go archives:**
-    ```bash
-    govman clean
-    ```
+**Method 2** - Manual creation:
+```bash
+echo "1.25.1" > .govman-version
+```
 
-## Configuration
+> 💡 **Tip**: GOVMAN will automatically switch to this version when you enter the project directory (requires shell integration).
 
-`govman` uses `viper` for configuration. The default configuration file is located at `$HOME/.govman/config.yaml`. You can also specify a custom configuration file using the `--config` flag.
+#### **Shell Integration**
 
-## Testing
+Initialize shell integration for automatic version switching:
+```bash
+govman init
+```
 
-The project includes various test targets:
+This command configures your shell to automatically switch Go versions based on `.govman-version` files.
 
-*   **Run unit tests:**
-    ```bash
-    make test
-    ```
+---
 
-*   **Run tests with coverage analysis:**
-    ```bash
-    make test-coverage
-    ```
+## 🛠️ **Tech Stack**
 
-*   **Run integration tests:**
-    ```bash
-    make test-integration
-    ```
+| Component | Technology |
+|-----------|------------|
+| **Language** | Go 1.25.1 |
+| **Framework** | Cobra CLI Framework |
+| **Configuration** | Viper |
+| **Build Tool** | Go Modules |
+| **Platforms** | Linux, macOS, Windows |
 
-*   **Run all tests (unit, integration, benchmark):**
-    ```bash
-    make test-all
-    ```
+---
 
-## Code Quality and Linting
+## 📁 **Project Structure**
 
-*   **Format code using `goimports`:**
-    ```bash
-    make fmt
-    ```
+```
+govman/
+│
+├── 📂 cmd/
+│   └── 📂 govman/
+│       └── 📄 main.go                # Entry point
+│
+├── 📂 internal/
+│   ├── 📂 cli/                       # CLI commands
+│   ├── 📂 config/                    # Configuration management
+│   ├── 📂 downloader/                # Download functionality
+│   ├── 📂 golang/                    # Go releases handling
+│   ├── 📂 logger/                    # Logging utilities
+│   ├── 📂 manager/                   # Core version management
+│   ├── 📂 progress/                  # Progress tracking
+│   ├── 📂 shell/                     # Shell integration
+│   ├── 📂 symlink/                   # Symlink management
+│   ├── 📂 util/                      # Utility functions
+│   └── 📂 version/                   # Version information
+│
+├── 📂 scripts/
+│   ├── 📄 install.sh                 # Installation script
+│   └── 📄 uninstall.sh               # Uninstallation script
+│
+├── 📄 go.mod                          # Go modules
+└── 📄 go.sum                          # Go dependencies checksums
+```
 
-*   **Run `go vet` for static analysis:**
-    ```bash
-    make vet
-    ```
+---
 
-*   **Run comprehensive linting using `golangci-lint`:**
-    ```bash
-    make lint
-    ```
+## 🔧 **Configuration**
 
-*   **Run all validation checks (fmt, vet, lint):**
-    ```bash
-    make validate
-    ```
+GOVMAN can be configured through `~/.govman/config.yaml`:
 
-## Development Conventions
+```yaml
+# Basic Configuration
+install_dir: ~/.govman/versions
+cache_dir: ~/.govman/cache
+default_version: ""
+quiet: false
+verbose: false
 
-*   **Build System:** Uses a `Makefile` for consistent task automation.
-*   **Code Formatting:** Enforces code formatting using `goimports`.
-*   **Linting:** Utilizes `golangci-lint` for comprehensive code quality checks.
-*   **Static Analysis:** Employs `go vet` for identifying suspicious constructs.
-*   **Testing:** Follows standard Go testing practices with `_test.go` files. Integration tests are specifically tagged.
-*   **CLI Framework:** Built with the Cobra library for structured command-line interfaces.
-*   **Configuration:** Uses Viper for flexible application configuration.
-*   **Version Information:** Build-time version, commit, and branch information are injected into the binary using `ldflags`.
-*   **Logging System:** Features a dual-output logging system with separate user-facing and technical logs. See [Logging Documentation](docs/logging.md) for details.
+# Download Settings
+download:
+  parallel: true
+  max_connections: 4
+  timeout: 300s
+  retry_count: 3
+  retry_delay: 5s
 
-## Contributing
+# Mirror Configuration
+mirror:
+  enabled: false
+  url: https://golang.google.cn/dl/
 
-Contributions are welcome! Please refer to the [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute to this project. (Note: `CONTRIBUTING.md` is a placeholder and needs to be created if not present).
+# Auto-Switch Settings
+auto_switch:
+  enabled: true
+  project_file: .govman-version
 
-## License
+# Shell Configuration
+shell:
+  auto_detect: true
+  completion: true
 
-This project is licensed under the MIT License. See the [LICENSE.md](LICENSE.md) file for details.
+# Go Releases API
+go_releases:
+  api_url: https://go.dev/dl/?mode=json&include=all
+  download_url: https://go.dev/dl/%s
+  cache_expiry: 10m0s
+
+# Self-Update Settings
+self_update:
+  github_api_url: https://api.github.com/repos/justjundana/govman/releases/latest
+  github_releases_url: https://api.github.com/repos/justjundana/govman/releases?per_page=1
+```
+
+---
+
+## 🧪 **Testing**
+
+Run tests with:
+```bash
+go test ./...
+```
+
+---
+
+## 🤝 **Contributing**
+
+We welcome contributions! Here's how to get started:
+
+1. 🍴 Fork the repository
+2. 🌿 Create a feature branch
+3. 💻 Commit your changes
+4. 📤 Push to the branch
+5. 🔄 Create a Pull Request
+
+---
+
+## 📈 **Performance**
+
+GOVMAN is optimized for performance with:
+
+- ⚡ **Parallel downloads** for faster installations
+- 💾 **Smart caching** to avoid re-downloading existing archives
+- 💿 **Minimal disk footprint** with efficient storage
+- 🔄 **Fast version switching** through symbolic links
+
+---
+
+## 🔒 **Security**
+
+- ✅ All downloads are verified with checksums
+- 🔐 Secure HTTPS connections for all remote operations
+- 📦 No external dependencies beyond standard libraries
+- 🔍 Regular security audits of the codebase
+
+---
+
+## ❓ **FAQ / Troubleshooting**
+
+<details>
+<summary><strong>Q: How do I uninstall GOVMAN completely?</strong></summary>
+
+Run the uninstall script:
+```bash
+curl -fsSL https://raw.githubusercontent.com/justjundana/govman/main/scripts/uninstall.sh | bash
+```
+</details>
+
+<details>
+<summary><strong>Q: GOVMAN is not switching versions automatically</strong></summary>
+
+Ensure you've run `govman init` and restarted your terminal. Check that your shell is supported (bash, zsh, fish, PowerShell).
+</details>
+
+<details>
+<summary><strong>Q: I'm getting permission errors</strong></summary>
+
+Make sure you have write permissions to `~/.govman` directory. You can change the installation directory in the configuration file.
+</details>
+
+<details>
+<summary><strong>Q: How do I update GOVMAN?</strong></summary>
+
+Use the built-in self-update command:
+```bash
+govman selfupdate
+```
+</details>
+
+---
+
+## 📝 **License**
+
+This project is licensed under the **MIT License**. See the [LICENSE.md](LICENSE.md) file for details.
+
+---
+
+## 👥 **Authors/Credits**
+**justjundana** - [justjundana](https://github.com/justjundana)
+
+---
+
+<p align="center">
+  <sub>Built with ❤️ by the GOVMAN team</sub>
+</p>
