@@ -3,6 +3,7 @@ package manager
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -147,9 +148,19 @@ func (m *Manager) Use(version string, setDefault, setLocal bool) error {
 		return nil
 	}
 
-	// Session-only use: print export command to stdout
+	// Session-only use: directly modify PATH in-process if possible (e.g., in interactive shell)
+	// But in general, we'll call a shell command to export it
 	versionBinPath := filepath.Join(m.config.GetVersionDir(version), "bin")
-	fmt.Println(m.shell.PathCommand(versionBinPath))
+
+	// Inject to os.Environ for current process
+	os.Setenv("PATH", versionBinPath+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	// Print the shell command to stdout so the shell wrapper can evaluate it
+	shellCmd := fmt.Sprintf("export PATH=\"%s:$PATH\"", versionBinPath)
+	fmt.Println(shellCmd)
+
+	// Optionally, export to shell for confirmation (could also be omitted)
+	_logger.Verbose("PATH updated to include: %s", versionBinPath)
 
 	return nil
 }
@@ -165,6 +176,14 @@ func (m *Manager) Current() (string, error) {
 				localVersion, m.config.AutoSwitch.ProjectFile, localVersion)
 		}
 		return localVersion, nil
+	}
+
+	// Check if there's a session-only version active by checking the 'go' command in PATH
+	// This is important because 'govman use' with session-only mode modifies the PATH
+	// but doesn't change the symlink, so the actual active version might be different
+	sessionVersion, err := m.getCurrentSessionVersion()
+	if err == nil && sessionVersion != "" {
+		return sessionVersion, nil
 	}
 
 	version, err := m.CurrentGlobal()
@@ -252,7 +271,7 @@ func (m *Manager) CurrentGlobal() (string, error) {
 	}
 	if _, err := os.Stat(goExecutable); err != nil {
 		if os.IsNotExist(err) {
-			return "", fmt.Errorf("Go %s installation appears corrupted - executable not found at %s. Try reinstalling with 'govman install %s'",
+			return "", fmt.Errorf("go %s installation appears corrupted - executable not found at %s. Try reinstalling with 'govman install %s'",
 				version, goExecutable, version)
 		}
 		return "", fmt.Errorf("failed to verify Go executable at %s for version %s: %w",
@@ -420,4 +439,30 @@ func (m *Manager) DefaultVersion() string {
 // GetDefaultVersionFromSymlink returns the version pointed to by the symlink
 func (m *Manager) GetDefaultVersionFromSymlink() (string, error) {
 	return m.CurrentGlobal()
+}
+
+// getCurrentSessionVersion checks if there's a session-only version active by running 'go version'
+// and parsing the output to determine which version is currently in the PATH
+func (m *Manager) getCurrentSessionVersion() (string, error) {
+	// Execute 'go version' to see which version is currently active in the PATH
+	cmd := exec.Command("go", "version")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to execute 'go version': %w", err)
+	}
+
+	// Parse the output to extract the version
+	// Expected format: "go version go1.25.1 darwin/amd64" or similar
+	versionStr := strings.TrimSpace(string(output))
+	parts := strings.Split(versionStr, " ")
+	if len(parts) < 3 {
+		return "", fmt.Errorf("unexpected 'go version' output format: %s", versionStr)
+	}
+
+	version := strings.TrimPrefix(parts[2], "go")
+	if version == "" {
+		return "", fmt.Errorf("could not extract version from 'go version' output: %s", versionStr)
+	}
+
+	return version, nil
 }
