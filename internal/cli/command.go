@@ -8,7 +8,7 @@ import (
 )
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.github.com/sijunda/govman/config.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.govman/config.yaml)")
 	rootCmd.PersistentFlags().Bool("verbose", false, "verbose output")
 	rootCmd.PersistentFlags().Bool("quiet", false, "quiet output (errors only)")
 

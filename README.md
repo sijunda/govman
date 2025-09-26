@@ -1,10 +1,10 @@
 <img src="./govman.png" alt="Govman">
 
 <p align="center">
-  <img src="https://img.shields.io/github/go-mod/go-version/justjundana/govman" alt="Go Version">
-  <img src="https://img.shields.io/github/license/justjundana/govman" alt="License">
-  <img src="https://img.shields.io/github/v/release/justjundana/govman" alt="Release">
-  <img src="https://img.shields.io/github/downloads/justjundana/govman/total" alt="Downloads">
+  <img src="https://img.shields.io/github/go-mod/go-version/sijunda/govman" alt="Go Version">
+  <img src="https://img.shields.io/github/license/sijunda/govman" alt="License">
+  <img src="https://img.shields.io/github/v/release/sijunda/govman" alt="Release">
+  <img src="https://img.shields.io/github/downloads/sijunda/govman/total" alt="Downloads">
 </p>
 
 <p align="center">
@@ -49,17 +49,17 @@ Before installing GOVMAN, ensure you have:
 
 Using **curl**:
 ```bash
-curl -fsSL https://raw.githubusercontent.com/justjundana/govman/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/sijunda/govman/main/scripts/install.sh | bash
 ```
 
 Using **wget**:
 ```bash
-wget -qO- https://raw.githubusercontent.com/justjundana/govman/main/scripts/install.sh | bash
+wget -qO- https://raw.githubusercontent.com/sijunda/govman/main/scripts/install.sh | bash
 ```
 
 ### 🔹 **Manual Installation**
 
-1. Download the latest release from the [**GitHub releases page**](https://github.com/justjundana/govman/releases)
+1. Download the latest release from the [**GitHub releases page**](https://github.com/sijunda/govman/releases)
 2. Extract the binary to a directory in your PATH
 3. Run `govman init` to configure shell integration
 
@@ -244,8 +244,8 @@ go_releases:
 
 # Self-Update Settings
 self_update:
-  github_api_url: https://api.github.com/repos/justjundana/govman/releases/latest
-  github_releases_url: https://api.github.com/repos/justjundana/govman/releases?per_page=1
+  github_api_url: https://api.github.com/repos/sijunda/govman/releases/latest
+  github_releases_url: https://api.github.com/repos/sijunda/govman/releases?per_page=1
 ```
 
 ---
@@ -298,7 +298,7 @@ GOVMAN is optimized for performance with:
 
 Run the uninstall script:
 ```bash
-curl -fsSL https://raw.githubusercontent.com/justjundana/govman/main/scripts/uninstall.sh | bash
+curl -fsSL https://raw.githubusercontent.com/sijunda/govman/main/scripts/uninstall.sh | bash
 ```
 </details>
 
@@ -332,7 +332,7 @@ This project is licensed under the **MIT License**. See the [LICENSE.md](LICENSE
 ---
 
 ## 👥 **Authors/Credits**
-**justjundana** - [justjundana](https://github.com/justjundana)
+**sijunda** - [sijunda](https://github.com/sijunda)
 
 ---
 

@@ -173,8 +173,6 @@ func (d *Downloader) downloadFile(url string, fileInfo *_golang.File) (string, e
 	// }
 
 	if _, err := io.Copy(file, reader); err != nil {
-		// Ensure the file is closed before returning
-		file.Close()
 		return "", fmt.Errorf("failed to write file: %w", err)
 	}
 

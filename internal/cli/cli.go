@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 
 	cobra "github.com/spf13/cobra"
 
@@ -12,8 +13,10 @@ import (
 )
 
 var (
-	cfgFile string
-	cfg     *_config.Config
+	cfgFile  string
+	cfg      *_config.Config
+	cfgMutex sync.Mutex
+	cfgOnce  sync.Once
 )
 
 var rootCmd = &cobra.Command{
@@ -83,19 +86,19 @@ func showBanner() {
 }
 
 func initConfig() error {
-	if cfg != nil {
-		return nil // Already initialized
-	}
-
-	var err error
-	cfg, err = _config.Load(cfgFile)
-	if err != nil {
-		return fmt.Errorf("failed to load config: %w", err)
-	}
-
-	return nil
+	var initErr error
+	cfgOnce.Do(func() {
+		var err error
+		cfg, err = _config.Load(cfgFile)
+		if err != nil {
+			initErr = fmt.Errorf("failed to load config: %w", err)
+		}
+	})
+	return initErr
 }
 
 func getConfig() *_config.Config {
+	cfgMutex.Lock()
+	defer cfgMutex.Unlock()
 	return cfg
 }

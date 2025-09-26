@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	viper "github.com/spf13/viper"
@@ -55,8 +56,8 @@ type GoReleasesConfig struct {
 }
 
 type SelfUpdateConfig struct {
-	GitHubAPIURL        string `mapstructure:"github_api_url"`
-	GitHubReleasesURL   string `mapstructure:"github_releases_url"`
+	GitHubAPIURL      string `mapstructure:"github_api_url"`
+	GitHubReleasesURL string `mapstructure:"github_releases_url"`
 }
 
 func Load(configFile string) (*Config, error) {
@@ -87,7 +88,7 @@ func Load(configFile string) (*Config, error) {
 			return nil, fmt.Errorf("failed to create config file with default values: %w", err)
 		}
 	}
-	
+
 	// Read config file (it should now exist)
 	if err := viper.ReadInConfig(); err != nil {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
@@ -252,7 +253,22 @@ func expandPath(path string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		return filepath.Join(homeDir, path[1:]), nil
+		// Validate that the path after ~ doesn't contain directory traversal
+		if len(path) > 1 && (path[1] != '/' && path[1] != '\\') {
+			return "", fmt.Errorf("invalid path format: paths starting with ~ must be followed by / or \\")
+		}
+
+		expandedPath := filepath.Join(homeDir, path[1:])
+		// Ensure the expanded path is within the home directory to prevent directory traversal
+		rel, err := filepath.Rel(homeDir, expandedPath)
+		if err != nil {
+			return "", fmt.Errorf("failed to evaluate relative path: %w", err)
+		}
+		if strings.HasPrefix(rel, "..") || strings.HasPrefix(filepath.ToSlash(rel), "../") {
+			return "", fmt.Errorf("path traversal detected: expanded path is outside home directory")
+		}
+
+		return expandedPath, nil
 	}
 	return path, nil
 }
