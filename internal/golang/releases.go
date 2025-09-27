@@ -28,9 +28,9 @@ const (
 
 var (
 	// Default values that can be overridden
-	defaultGoReleasesAPI   = "https://go.dev/dl/?mode=json&include=all"
-	defaultCacheDuration   = 10 * time.Minute
-	defaultGoDownloadURL   = "https://go.dev/dl/%s"
+	defaultGoReleasesAPI = "https://go.dev/dl/?mode=json&include=all"
+	defaultCacheDuration = 10 * time.Minute
+	defaultGoDownloadURL = "https://go.dev/dl/%s"
 )
 
 type Release struct {
@@ -258,13 +258,17 @@ func parseVersion(version string) versionParts {
 	}
 
 	// Parse major version
-	if num, err := strconv.Atoi(matches[1]); err == nil {
-		parts.numbers[0] = num
+	if len(matches) > 1 {
+		if num, err := strconv.Atoi(matches[1]); err == nil {
+			parts.numbers[0] = num
+		}
 	}
 
 	// Parse minor version
-	if num, err := strconv.Atoi(matches[2]); err == nil {
-		parts.numbers[1] = num
+	if len(matches) > 2 {
+		if num, err := strconv.Atoi(matches[2]); err == nil {
+			parts.numbers[1] = num
+		}
 	}
 
 	// Parse patch version (optional)

@@ -221,7 +221,11 @@ func (c *Config) GetVersionDir(version string) string {
 }
 
 func (c *Config) GetBinPath() string {
-	homeDir, _ := getHomeDir()
+	homeDir, err := getHomeDir()
+	if err != nil {
+		// Fallback to current directory if home directory cannot be determined
+		homeDir = "."
+	}
 	return filepath.Join(homeDir, ".govman", "bin")
 }
 

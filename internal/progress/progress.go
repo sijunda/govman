@@ -88,7 +88,18 @@ func (pb *ProgressBar) render() {
 	filledWidth := int(float64(pb.width) * float64(pb.current) / float64(pb.total))
 
 	// Create progress bar
-	bar := strings.Repeat("█", filledWidth) + strings.Repeat("░", pb.width-filledWidth)
+	// Build the progress bar more efficiently
+	var bar strings.Builder
+	bar.Grow(pb.width) // Pre-allocate capacity
+
+	// Add filled portion
+	for i := 0; i < filledWidth; i++ {
+		bar.WriteString("█")
+	}
+	// Add empty portion
+	for i := filledWidth; i < pb.width; i++ {
+		bar.WriteString("░")
+	}
 
 	// Calculate speed and ETA
 	elapsed := time.Since(pb.startTime)
@@ -111,7 +122,7 @@ func (pb *ProgressBar) render() {
 
 	// Build status line
 	status := fmt.Sprintf("\r%s [%s] %.1f%% (%s/%s)",
-		pb.description, bar, percentage, currentStr, totalStr)
+		pb.description, bar.String(), percentage, currentStr, totalStr)
 
 	if speedStr != "" {
 		status += fmt.Sprintf(" %s", speedStr)

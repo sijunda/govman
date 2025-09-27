@@ -88,6 +88,8 @@ func showBanner() {
 func initConfig() error {
 	var initErr error
 	cfgOnce.Do(func() {
+		cfgMutex.Lock()
+		defer cfgMutex.Unlock()
 		var err error
 		cfg, err = _config.Load(cfgFile)
 		if err != nil {
