@@ -40,5 +40,6 @@ func addCommands() {
 		newInfoCmd(),
 		newCleanCmd(),
 		newSelfUpdateCmd(),
+		newRefreshCmd(),
 	)
 }
