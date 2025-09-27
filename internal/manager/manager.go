@@ -124,6 +124,30 @@ func (m *Manager) Use(version string, setDefault, setLocal bool) error {
 		if err := m.setLocalVersion(version); err != nil {
 			return fmt.Errorf("failed to set local version: %w", err)
 		}
+
+		// Also apply the local version immediately to the current session
+		// This ensures that `go version` matches `govman current` right after setting
+		versionBinPath := filepath.Join(m.config.GetVersionDir(version), "bin")
+
+		// Inject to os.Environ for current process
+		os.Setenv("PATH", versionBinPath+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+		// Print the shell command to stdout so the shell wrapper can evaluate it
+		// Detect shell type and output appropriate command
+		var shellCmd string
+		switch shell := m.shell.Name(); shell {
+		case "fish":
+			shellCmd = fmt.Sprintf("set -gx PATH \"%s\" $PATH", versionBinPath)
+		case "powershell":
+			shellCmd = fmt.Sprintf("$env:PATH = \"%s;\" + $env:PATH", versionBinPath)
+		case "cmd":
+			shellCmd = fmt.Sprintf("set PATH=%s;%%PATH%%", versionBinPath)
+		default:
+			// Default to bash/zsh format
+			shellCmd = fmt.Sprintf("export PATH=\"%s:$PATH\"", versionBinPath)
+		}
+		fmt.Println(shellCmd)
+
 		return nil
 	}
 
@@ -158,12 +182,14 @@ func (m *Manager) Use(version string, setDefault, setLocal bool) error {
 	// Print the shell command to stdout so the shell wrapper can evaluate it
 	// Detect shell type and output appropriate command
 	var shellCmd string
-	shell := m.shell.Name()
-	if shell == "fish" {
+	switch shell := m.shell.Name(); shell {
+	case "fish":
 		shellCmd = fmt.Sprintf("set -gx PATH \"%s\" $PATH", versionBinPath)
-	} else if shell == "powershell" {
+	case "powershell":
 		shellCmd = fmt.Sprintf("$env:PATH = \"%s;\" + $env:PATH", versionBinPath)
-	} else {
+	case "cmd":
+		shellCmd = fmt.Sprintf("set PATH=%s;%%PATH%%", versionBinPath)
+	default:
 		// Default to bash/zsh format
 		shellCmd = fmt.Sprintf("export PATH=\"%s:$PATH\"", versionBinPath)
 	}
