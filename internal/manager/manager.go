@@ -156,7 +156,17 @@ func (m *Manager) Use(version string, setDefault, setLocal bool) error {
 	os.Setenv("PATH", versionBinPath+string(os.PathListSeparator)+os.Getenv("PATH"))
 
 	// Print the shell command to stdout so the shell wrapper can evaluate it
-	shellCmd := fmt.Sprintf("export PATH=\"%s:$PATH\"", versionBinPath)
+	// Detect shell type and output appropriate command
+	var shellCmd string
+	shell := m.shell.Name()
+	if shell == "fish" {
+		shellCmd = fmt.Sprintf("set -gx PATH \"%s\" $PATH", versionBinPath)
+	} else if shell == "powershell" {
+		shellCmd = fmt.Sprintf("$env:PATH = \"%s;\" + $env:PATH", versionBinPath)
+	} else {
+		// Default to bash/zsh format
+		shellCmd = fmt.Sprintf("export PATH=\"%s:$PATH\"", versionBinPath)
+	}
 	fmt.Println(shellCmd)
 
 	// Optionally, export to shell for confirmation (could also be omitted)
