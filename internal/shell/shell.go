@@ -556,12 +556,13 @@ func initializeUnixShell(shell Shell, binPath string, force bool) error {
 	}
 
 	// Check if govman is already configured
-	if !force && containsGovmanConfig(existingContent) {
+	govmanExists := containsGovmanConfig(existingContent)
+	if !force && govmanExists {
 		return fmt.Errorf("govman is already configured in %s (use --force to override)", configFile)
 	}
 
-	// Remove existing govman configuration if forcing
-	if force {
+	// Remove existing govman configuration if it exists (either forcing or updating)
+	if govmanExists {
 		existingContent = removeExistingConfig(existingContent)
 	}
 
@@ -637,18 +638,20 @@ func containsGovmanConfig(content string) bool {
 
 // removeExistingConfig removes the existing govman configuration from the content.
 func removeExistingConfig(content string) string {
-	// Regex to find the govman block, accommodating different comment styles
-	// It looks for a block starting with a line containing "GOVMAN - Go Version Manager"
-	// and ending with a line containing "END GOVMAN".
-	// The (?s) flag allows . to match newlines.
-	// The non-greedy .*? ensures it only matches one block if multiple exist.
-	regex := `(?s)(?m)^.*GOVMAN - Go Version Manager.*?\n(?:.*?\n)*?.*END GOVMAN\s*\n?`
+	// More precise regex to find the govman block
+	// This matches the exact pattern used by the setup commands:
+	// - Line with "GOVMAN - Go Version Manager" (with any comment prefix)
+	// - All content until the line with "END GOVMAN"
+	// - Includes the END GOVMAN line
+	regex := `(?m)^[#\s]*GOVMAN - Go Version Manager[^\n]*\n(?s:.*?)^[#\s]*END GOVMAN[^\n]*(?:\n|$)`
 	r := regexp.MustCompile(regex)
 
 	// Replace the found block with an empty string
 	cleanedContent := r.ReplaceAllString(content, "")
 
-	// Trim any leading/trailing whitespace that might be left
+	// Clean up multiple consecutive newlines that might be left
+	cleanedContent = regexp.MustCompile(`\n{3,}`).ReplaceAllString(cleanedContent, "\n\n")
+
 	return strings.TrimSpace(cleanedContent)
 }
 
