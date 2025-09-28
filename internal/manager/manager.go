@@ -202,9 +202,21 @@ func (m *Manager) Use(version string, setDefault, setLocal bool) error {
 }
 
 // Current returns the currently active Go version
-// It prioritizes local version files over global settings
+// Priority order: 1) Session version (explicit govman use), 2) Local version file, 3) Global default
 func (m *Manager) Current() (string, error) {
-	// Check for local version first (project-specific .govman-version file)
+	// Check if there's a session-only version active by checking the 'go' command in PATH FIRST
+	// This is important because explicit 'govman use' commands should override local files
+	// When user runs 'govman use', that should take priority over .govman-version files
+	sessionVersion, err := m.getCurrentSessionVersion()
+	if err == nil && sessionVersion != "" {
+		// Validate that the session version is actually installed
+		if !m.IsInstalled(sessionVersion) {
+			_logger.Warning("Session version %s is active but not managed by GOVMAN", sessionVersion)
+		}
+		return sessionVersion, nil
+	}
+
+	// Check for local version second (project-specific .govman-version file)
 	if localVersion := m.getLocalVersion(); localVersion != "" {
 		// Validate that the local version is actually installed
 		if !m.IsInstalled(localVersion) {
@@ -212,14 +224,6 @@ func (m *Manager) Current() (string, error) {
 				localVersion, m.config.AutoSwitch.ProjectFile, localVersion)
 		}
 		return localVersion, nil
-	}
-
-	// Check if there's a session-only version active by checking the 'go' command in PATH
-	// This is important because 'govman use' with session-only mode modifies the PATH
-	// but doesn't change the symlink, so the actual active version might be different
-	sessionVersion, err := m.getCurrentSessionVersion()
-	if err == nil && sessionVersion != "" {
-		return sessionVersion, nil
 	}
 
 	version, err := m.CurrentGlobal()
