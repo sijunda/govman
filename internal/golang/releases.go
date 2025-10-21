@@ -27,7 +27,6 @@ const (
 )
 
 var (
-	// Default values that can be overridden
 	defaultGoReleasesAPI = "https://go.dev/dl/?mode=json&include=all"
 	defaultCacheDuration = 10 * time.Minute
 	defaultGoDownloadURL = "https://go.dev/dl/%s"
@@ -58,11 +57,14 @@ type VersionInfo struct {
 	Size        int64
 }
 
-// GetAvailableVersions fetches all available Go versions
+// GetAvailableVersions returns all available Go versions, optionally including unstable ones.
+// Parameter includeUnstable controls inclusion. Returns a sorted slice of version strings or an error.
 func GetAvailableVersions(includeUnstable bool) ([]string, error) {
 	return GetAvailableVersionsWithConfig(includeUnstable, defaultGoReleasesAPI, defaultCacheDuration)
 }
 
+// GetAvailableVersionsWithConfig fetches available versions using a specific API URL and cache duration.
+// Parameters: includeUnstable, apiURL, cacheDuration. Returns a sorted slice of version strings or an error.
 func GetAvailableVersionsWithConfig(includeUnstable bool, apiURL string, cacheDuration time.Duration) ([]string, error) {
 	releases, err := fetchReleasesWithConfig(apiURL, cacheDuration)
 	if err != nil {
@@ -74,12 +76,11 @@ func GetAvailableVersionsWithConfig(includeUnstable bool, apiURL string, cacheDu
 		if !includeUnstable && !release.Stable {
 			continue
 		}
-		// Remove "go" prefix for consistency
+
 		version := strings.TrimPrefix(release.Version, "go")
 		versions = append(versions, version)
 	}
 
-	// Sort versions (newest first)
 	sort.Slice(versions, func(i, j int) bool {
 		return CompareVersions(versions[i], versions[j]) > 0
 	})
@@ -87,11 +88,14 @@ func GetAvailableVersionsWithConfig(includeUnstable bool, apiURL string, cacheDu
 	return versions, nil
 }
 
-// GetDownloadURL returns the download URL for a specific version
+// GetDownloadURL returns the archive download URL for a given version using default endpoints.
+// Parameter version is the version string. Returns the URL or an error if unavailable for the platform.
 func GetDownloadURL(version string) (string, error) {
 	return GetDownloadURLWithConfig(version, defaultGoReleasesAPI, defaultCacheDuration, defaultGoDownloadURL)
 }
 
+// GetDownloadURLWithConfig computes the archive download URL using custom API and URL template.
+// Parameters: version, apiURL, cacheDuration, downloadURL (format string). Returns URL or error.
 func GetDownloadURLWithConfig(version string, apiURL string, cacheDuration time.Duration, downloadURL string) (string, error) {
 	releases, err := fetchReleasesWithConfig(apiURL, cacheDuration)
 	if err != nil {
@@ -102,8 +106,6 @@ func GetDownloadURLWithConfig(version string, apiURL string, cacheDuration time.
 	goos := runtime.GOOS
 	goarch := runtime.GOARCH
 
-	// Handle older Go versions that might not have a direct darwin/arm64 build
-	// but have a compatible one.
 	resolvedArch := resolveArch(version, goos, goarch)
 
 	for _, release := range releases {
@@ -121,25 +123,26 @@ func GetDownloadURLWithConfig(version string, apiURL string, cacheDuration time.
 	return "", fmt.Errorf("no download available for Go %s on %s/%s", version, goos, goarch)
 }
 
-// resolveArch returns the correct architecture for a given Go version.
-// For example, Go versions older than 1.16 don't have a darwin/arm64 build,
-// but the darwin/amd64 build can be used on Apple Silicon with Rosetta 2.
+// resolveArch determines the appropriate architecture for downloads (e.g., maps darwin/arm64 to amd64 pre-1.16).
+// Parameters: version, goos, goarch. Returns the resolved architecture string.
 func resolveArch(version, goos, goarch string) string {
-	// As of Go 1.16, official darwin/arm64 builds are available.
-	// For older versions, we can fall back to the amd64 build on Apple Silicon.
 	if goos == "darwin" && goarch == "arm64" {
 		if CompareVersions(version, "1.16") < 0 {
 			return "amd64"
 		}
 	}
+
 	return goarch
 }
 
-// GetFileInfo returns file information for a specific version
+// GetFileInfo returns metadata for the current platform's archive for a version using defaults.
+// Parameter version is the version string. Returns *File or an error if not found.
 func GetFileInfo(version string) (*File, error) {
 	return GetFileInfoWithConfig(version, defaultGoReleasesAPI, defaultCacheDuration)
 }
 
+// GetFileInfoWithConfig returns archive metadata using a specific API URL and cache duration.
+// Parameters: version, apiURL, cacheDuration. Returns *File or an error.
 func GetFileInfoWithConfig(version string, apiURL string, cacheDuration time.Duration) (*File, error) {
 	releases, err := fetchReleasesWithConfig(apiURL, cacheDuration)
 	if err != nil {
@@ -167,9 +170,9 @@ func GetFileInfoWithConfig(version string, apiURL string, cacheDuration time.Dur
 	return nil, fmt.Errorf("no file info available for Go %s on %s/%s", version, goos, goarch)
 }
 
-// GetVersionInfo returns information about an installed version
+// GetVersionInfo collects local installation details (version, path, OS/arch, install date, size).
+// Parameter installPath is the Go installation root. Returns *VersionInfo or an error if missing binary.
 func GetVersionInfo(installPath string) (*VersionInfo, error) {
-	// Check if go binary exists
 	goBinary := filepath.Join(installPath, "bin", "go")
 	if runtime.GOOS == "windows" {
 		goBinary += ".exe"
@@ -180,14 +183,12 @@ func GetVersionInfo(installPath string) (*VersionInfo, error) {
 		return nil, fmt.Errorf("go binary not found in %s", installPath)
 	}
 
-	// Extract version from path
 	version := filepath.Base(installPath)
 	version = strings.TrimPrefix(version, "go")
 
-	// Calculate directory size
 	size, err := getDirSize(installPath)
 	if err != nil {
-		size = 0 // Continue without size info
+		size = 0
 	}
 
 	return &VersionInfo{
@@ -200,27 +201,27 @@ func GetVersionInfo(installPath string) (*VersionInfo, error) {
 	}, nil
 }
 
-// CompareVersions compares two version strings
-// Returns: 1 if v1 > v2, -1 if v1 < v2, 0 if equal
+// CompareVersions compares two semantic version strings with prerelease awareness.
+// Returns 1 if v1 > v2, -1 if v1 < v2, and 0 if equal.
 func CompareVersions(v1, v2 string) int {
-	// Quick equality check
+	// Early return for identical strings
 	if v1 == v2 {
 		return 0
 	}
 
-	// Normalize versions (remove prefixes, handle rc/beta)
-	v1 = normalizeVersion(v1)
-	v2 = normalizeVersion(v2)
+	// Normalize once and check again
+	v1Norm := normalizeVersion(v1)
+	v2Norm := normalizeVersion(v2)
 
-	// Check again after normalization
-	if v1 == v2 {
+	if v1Norm == v2Norm {
 		return 0
 	}
 
-	parts1 := parseVersion(v1)
-	parts2 := parseVersion(v2)
+	// Parse both versions
+	parts1 := parseVersion(v1Norm)
+	parts2 := parseVersion(v2Norm)
 
-	// Compare major, minor, patch
+	// Compare version numbers
 	for i := 0; i < 3; i++ {
 		if parts1.numbers[i] > parts2.numbers[i] {
 			return 1
@@ -229,56 +230,53 @@ func CompareVersions(v1, v2 string) int {
 		}
 	}
 
-	// Compare pre-release (stable > rc > beta > alpha)
+	// Compare prerelease tags
 	return comparePrerelease(parts1.prerelease, parts2.prerelease)
 }
 
-// IsValidVersion checks if a version string is valid
+// IsValidVersion validates a version string (optional patch and prerelease tags supported).
+// Parameter version. Returns true if valid, false otherwise.
 func IsValidVersion(version string) bool {
-	// Basic version pattern: x.y.z with optional pre-release
 	pattern := `^\d+\.\d+(?:\.\d+)?(?:-?(?:rc|beta|alpha)\d*)?$`
 	matched, _ := regexp.MatchString(pattern, version)
 	return matched
 }
 
 type versionParts struct {
-	numbers    [3]int // major, minor, patch
+	numbers    [3]int
 	prerelease string
 }
 
+// parseVersion parses a normalized version into numeric components and a prerelease tag.
+// Parameter version. Returns a versionParts struct.
 func parseVersion(version string) versionParts {
 	var parts versionParts
 
-	// Extract pre-release suffix with improved regex
 	re := regexp.MustCompile(`^(\d+)\.(\d+)(?:\.(\d+))?(?:-?(rc\d+|beta\d+|alpha\d+))?$`)
 	matches := re.FindStringSubmatch(version)
 
 	if len(matches) == 0 {
-		return parts // Invalid version
+		return parts
 	}
 
-	// Parse major version
 	if len(matches) > 1 {
 		if num, err := strconv.Atoi(matches[1]); err == nil {
 			parts.numbers[0] = num
 		}
 	}
 
-	// Parse minor version
 	if len(matches) > 2 {
 		if num, err := strconv.Atoi(matches[2]); err == nil {
 			parts.numbers[1] = num
 		}
 	}
 
-	// Parse patch version (optional)
 	if len(matches) > 3 && matches[3] != "" {
 		if num, err := strconv.Atoi(matches[3]); err == nil {
 			parts.numbers[2] = num
 		}
 	}
 
-	// Extract pre-release (if present)
 	if len(matches) > 4 && matches[4] != "" {
 		parts.prerelease = matches[4]
 	}
@@ -286,25 +284,27 @@ func parseVersion(version string) versionParts {
 	return parts
 }
 
+// normalizeVersion strips leading "go" or "v" prefixes from version strings.
+// Parameter version. Returns the normalized string.
 func normalizeVersion(version string) string {
-	// Remove common prefixes
 	version = strings.TrimPrefix(version, "go")
 	version = strings.TrimPrefix(version, "v")
 	return version
 }
 
+// comparePrerelease compares prerelease identifiers by type (alpha < beta < rc) and numeric suffix.
+// Returns 1, -1, or 0 depending on ordering.
 func comparePrerelease(pre1, pre2 string) int {
 	if pre1 == "" && pre2 == "" {
 		return 0
 	}
 	if pre1 == "" {
-		return 1 // Stable > pre-release
+		return 1
 	}
 	if pre2 == "" {
 		return -1
 	}
 
-	// Both are pre-releases, compare by type and number
 	rank1 := getPrereleaseRank(pre1)
 	rank2 := getPrereleaseRank(pre2)
 
@@ -312,7 +312,6 @@ func comparePrerelease(pre1, pre2 string) int {
 		return rank1 - rank2
 	}
 
-	// Same type, compare numbers
 	num1 := extractPrereleaseNumber(pre1)
 	num2 := extractPrereleaseNumber(pre2)
 
@@ -325,6 +324,8 @@ func comparePrerelease(pre1, pre2 string) int {
 	return 0
 }
 
+// getPrereleaseRank assigns an ordering to prerelease types: alpha < beta < rc.
+// Parameter prerelease. Returns an integer rank.
 func getPrereleaseRank(prerelease string) int {
 	if strings.HasPrefix(prerelease, "rc") {
 		return 3
@@ -336,6 +337,8 @@ func getPrereleaseRank(prerelease string) int {
 	return 0
 }
 
+// extractPrereleaseNumber extracts trailing digits from a prerelease tag.
+// Parameter prerelease. Returns the numeric suffix, or 0 if absent.
 func extractPrereleaseNumber(prerelease string) int {
 	re := regexp.MustCompile(`\d+$`)
 	match := re.FindString(prerelease)
@@ -345,12 +348,9 @@ func extractPrereleaseNumber(prerelease string) int {
 	return 0
 }
 
-func fetchReleases() ([]Release, error) {
-	return fetchReleasesWithConfig(defaultGoReleasesAPI, defaultCacheDuration)
-}
-
+// fetchReleasesWithConfig fetches releases JSON, caches results with expiry, and returns parsed data.
+// Parameters: apiURL, cacheDuration. Returns []Release or an error.
 func fetchReleasesWithConfig(apiURL string, cacheDuration time.Duration) ([]Release, error) {
-	// Check cache first
 	cacheMutex.RLock()
 	if time.Now().Before(cacheExpiry) && releasesCache != nil {
 		defer cacheMutex.RUnlock()
@@ -358,12 +358,10 @@ func fetchReleasesWithConfig(apiURL string, cacheDuration time.Duration) ([]Rele
 	}
 	cacheMutex.RUnlock()
 
-	// Create HTTP client with timeout
 	client := &http.Client{
 		Timeout: 30 * time.Second,
 	}
 
-	// Fetch from API
 	resp, err := client.Get(apiURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch releases: %w", err)
@@ -371,7 +369,7 @@ func fetchReleasesWithConfig(apiURL string, cacheDuration time.Duration) ([]Rele
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to fetch releases: HTTP %d", resp.StatusCode)
+		return nil, fmt.Errorf("failed to fetch releases: HTTP %d (%s)", resp.StatusCode, resp.Status)
 	}
 
 	body, err := io.ReadAll(resp.Body)
@@ -384,7 +382,6 @@ func fetchReleasesWithConfig(apiURL string, cacheDuration time.Duration) ([]Rele
 		return nil, fmt.Errorf("failed to parse releases: %w", err)
 	}
 
-	// Update cache
 	cacheMutex.Lock()
 	releasesCache = releases
 	cacheExpiry = time.Now().Add(cacheDuration)
@@ -393,13 +390,14 @@ func fetchReleasesWithConfig(apiURL string, cacheDuration time.Duration) ([]Rele
 	return releases, nil
 }
 
+// getDirSize walks a directory and sums file sizes.
+// Parameter path. Returns total size in bytes or an error (errors during walk are ignored).
 func getDirSize(path string) (int64, error) {
 	var size int64
 
 	err := filepath.Walk(path, func(_ string, info os.FileInfo, err error) error {
 		if err != nil {
-			// Continue walking even if some files can't be accessed
-			return nil
+			return err
 		}
 		if !info.IsDir() {
 			size += info.Size()
@@ -410,7 +408,7 @@ func getDirSize(path string) (int64, error) {
 	return size, err
 }
 
-// ClearReleasesCache clears the releases cache
+// ClearReleasesCache clears the in-memory releases cache and resets its expiry time.
 func ClearReleasesCache() {
 	cacheMutex.Lock()
 	releasesCache = nil

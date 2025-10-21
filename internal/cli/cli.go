@@ -21,7 +21,7 @@ var (
 
 var rootCmd = &cobra.Command{
 	Use:     "govman",
-	Short:   "🚀 Go Version Manager - Install and manage multiple Go versions",
+	Short:   "Go Version Manager - Install and manage multiple Go versions",
 	Long:    createLongDescription(),
 	Version: _version.BuildVersion(),
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
@@ -29,6 +29,8 @@ var rootCmd = &cobra.Command{
 	},
 }
 
+// createLongDescription returns a formatted long description string for the root CLI command.
+// It assembles key features into a multi-line string and returns it.
 func createLongDescription() string {
 	features := []string{
 		"⚡ Lightning-fast installation and switching between Go versions",
@@ -42,23 +44,25 @@ func createLongDescription() string {
 	}
 
 	var sb strings.Builder
-	sb.WriteString("\n🎯 Key Features:\n")
+	sb.WriteString("\nKey Features:\n")
 	for _, feature := range features {
 		sb.WriteString(fmt.Sprintf("  %s\n", feature))
 	}
 	return sb.String()
 }
 
-// Execute runs the root command and shows a banner when no arguments are provided.
+// Execute runs the root Cobra command.
+// It shows an ASCII banner when no CLI arguments are provided and returns any execution error.
 func Execute() error {
-	// Show banner only when no subcommands or arguments are provided
-	// os.Args[0] is always the program name, so we check if there's only that element
+
 	if len(os.Args) <= 1 {
 		showBanner()
 	}
 	return rootCmd.Execute()
 }
 
+// showBanner prints a colored ASCII banner to stdout.
+// It has no parameters and no return value.
 func showBanner() {
 	fmt.Println()
 	banner := `
@@ -79,17 +83,17 @@ func showBanner() {
 
 	for _, line := range lines {
 		if strings.TrimSpace(line) != "" {
-			fmt.Println(color + bold + line + reset)
+			fmt.Printf("%s%s%s%s\n", color, bold, line, reset)
 		}
 	}
 	fmt.Println()
 }
 
+// initConfig lazily loads the application configuration once using sync.Once.
+// Returns an error if configuration loading fails; otherwise nil.
 func initConfig() error {
 	var initErr error
 	cfgOnce.Do(func() {
-		cfgMutex.Lock()
-		defer cfgMutex.Unlock()
 		var err error
 		cfg, err = _config.Load(cfgFile)
 		if err != nil {
@@ -99,6 +103,8 @@ func initConfig() error {
 	return initErr
 }
 
+// getConfig returns the loaded configuration instance.
+// No parameters; returns a pointer to Config.
 func getConfig() *_config.Config {
 	cfgMutex.Lock()
 	defer cfgMutex.Unlock()

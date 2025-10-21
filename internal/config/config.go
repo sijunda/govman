@@ -60,13 +60,14 @@ type SelfUpdateConfig struct {
 	GitHubReleasesURL string `mapstructure:"github_releases_url"`
 }
 
+// Load loads configuration from a YAML file.
+// If configFile is empty, it defaults to ~/.govman/config.yaml.
+// It applies defaults, reads/unmarshals the file, expands paths, ensures directories, and returns the Config or an error.
 func Load(configFile string) (*Config, error) {
 	cfg := &Config{}
 
-	// Set default values
 	cfg.setDefaults()
 
-	// Determine config file path
 	if configFile != "" {
 		cfg.configPath = configFile
 	} else {
@@ -77,34 +78,27 @@ func Load(configFile string) (*Config, error) {
 		cfg.configPath = filepath.Join(homeDir, ".govman", "config.yaml")
 	}
 
-	// Setup viper
 	viper.SetConfigFile(cfg.configPath)
 	viper.SetConfigType("yaml")
 
-	// Check if config file exists
 	if _, err := os.Stat(cfg.configPath); os.IsNotExist(err) {
-		// Config file doesn't exist, create it with default values
 		if err := cfg.Save(); err != nil {
 			return nil, fmt.Errorf("failed to create config file with default values: %w", err)
 		}
 	}
 
-	// Read config file (it should now exist)
 	if err := viper.ReadInConfig(); err != nil {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
 
-	// Unmarshal config
 	if err := viper.Unmarshal(cfg); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
-	// Expand paths
 	if err := cfg.expandPaths(); err != nil {
 		return nil, fmt.Errorf("failed to expand paths: %w", err)
 	}
 
-	// Create directories
 	if err := cfg.createDirectories(); err != nil {
 		return nil, fmt.Errorf("failed to create directories: %w", err)
 	}
@@ -112,10 +106,12 @@ func Load(configFile string) (*Config, error) {
 	return cfg, nil
 }
 
+// setDefaults initializes default values for all Config fields:
+// install/cache directories, download behavior, mirror, autoswitch, shell, releases API, and self-update endpoints.
 func (c *Config) setDefaults() {
 	homeDir, err := getHomeDir()
 	if err != nil {
-		homeDir = "." // Use current directory as fallback instead of /tmp
+		homeDir = "."
 	}
 	govmanDir := filepath.Join(homeDir, ".govman")
 
@@ -160,6 +156,8 @@ func (c *Config) setDefaults() {
 	}
 }
 
+// expandPaths expands and validates configured paths (e.g., handles ~), preventing traversal outside HOME.
+// Returns an error if expansion/validation fails.
 func (c *Config) expandPaths() error {
 	var err error
 
@@ -176,6 +174,8 @@ func (c *Config) expandPaths() error {
 	return nil
 }
 
+// createDirectories ensures required directories (install and cache) exist, creating them if necessary.
+// Returns an error on filesystem failures.
 func (c *Config) createDirectories() error {
 	dirs := []string{c.InstallDir, c.CacheDir}
 
@@ -188,14 +188,14 @@ func (c *Config) createDirectories() error {
 	return nil
 }
 
+// Save writes the current Config to disk at configPath using viper.
+// Returns an error if the config directory cannot be created or the file cannot be written.
 func (c *Config) Save() error {
-	// Create config directory if it doesn't exist
 	configDir := filepath.Dir(c.configPath)
 	if err := os.MkdirAll(configDir, 0755); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
 
-	// Sync struct fields with viper before saving
 	viper.Set("default_version", c.DefaultVersion)
 	viper.Set("install_dir", c.InstallDir)
 	viper.Set("cache_dir", c.CacheDir)
@@ -208,7 +208,6 @@ func (c *Config) Save() error {
 	viper.Set("go_releases", c.GoReleases)
 	viper.Set("self_update", c.SelfUpdate)
 
-	// Write config file
 	if err := viper.WriteConfigAs(c.configPath); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
@@ -216,23 +215,28 @@ func (c *Config) Save() error {
 	return nil
 }
 
+// GetVersionDir returns the installation directory for a given Go version, e.g., ~/.govman/versions/go1.25.1.
 func (c *Config) GetVersionDir(version string) string {
 	return filepath.Join(c.InstallDir, fmt.Sprintf("go%s", version))
 }
 
+// GetBinPath returns the path to the govman bin directory, typically ~/.govman/bin.
 func (c *Config) GetBinPath() string {
 	homeDir, err := getHomeDir()
 	if err != nil {
-		// Fallback to current directory if home directory cannot be determined
 		homeDir = "."
 	}
+
 	return filepath.Join(homeDir, ".govman", "bin")
 }
 
+// GetCurrentSymlink returns the path to the global "go" symlink inside the bin directory.
 func (c *Config) GetCurrentSymlink() string {
 	return filepath.Join(c.GetBinPath(), "go")
 }
 
+// getHomeDir returns the current user's HOME directory (USERPROFILE on Windows).
+// Returns an error if it cannot be determined.
 func getHomeDir() (string, error) {
 	var homeDir string
 	if runtime.GOOS == "windows" {
@@ -248,6 +252,8 @@ func getHomeDir() (string, error) {
 	return homeDir, nil
 }
 
+// expandPath expands a leading ~ to the home directory and validates the result against traversal outside HOME.
+// Returns the expanded path or an error for invalid formats or traversal attempts.
 func expandPath(path string) (string, error) {
 	if path == "" {
 		return "", fmt.Errorf("empty path provided")
@@ -257,13 +263,13 @@ func expandPath(path string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		// Validate that the path after ~ doesn't contain directory traversal
-		if len(path) > 1 && (path[1] != '/' && path[1] != '\\') {
+
+		if len(path) > 1 && path[1] != '/' && path[1] != '\\' {
 			return "", fmt.Errorf("invalid path format: paths starting with ~ must be followed by / or \\")
 		}
 
 		expandedPath := filepath.Join(homeDir, path[1:])
-		// Ensure the expanded path is within the home directory to prevent directory traversal
+
 		rel, err := filepath.Rel(homeDir, expandedPath)
 		if err != nil {
 			return "", fmt.Errorf("failed to evaluate relative path: %w", err)

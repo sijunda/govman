@@ -5,14 +5,14 @@ import (
 	"path/filepath"
 )
 
-// ReadLink reads the target of a symbolic link
+// ReadLink reads the target of a symlink at symlinkPath.
+// It resolves relative targets against the symlink's directory and returns the absolute path or an error.
 func ReadLink(symlinkPath string) (string, error) {
 	target, err := os.Readlink(symlinkPath)
 	if err != nil {
 		return "", err
 	}
 
-	// Convert to absolute path if relative
 	if !filepath.IsAbs(target) {
 		dir := filepath.Dir(symlinkPath)
 		target = filepath.Join(dir, target)
@@ -21,15 +21,14 @@ func ReadLink(symlinkPath string) (string, error) {
 	return target, nil
 }
 
-// Create creates a symbolic link from target to symlinkPath
+// Create creates a symlink at symlinkPath pointing to target.
+// If a path already exists at symlinkPath, it removes it first, then creates the new symlink.
 func Create(target, symlinkPath string) error {
-	// Remove existing symlink if it exists
 	if _, err := os.Lstat(symlinkPath); err == nil {
 		if err := os.Remove(symlinkPath); err != nil {
 			return err
 		}
 	}
 
-	// Create the symbolic link
 	return os.Symlink(target, symlinkPath)
 }

@@ -7,26 +7,28 @@ import (
 	_manager "github.com/sijunda/govman/internal/manager"
 )
 
+// newCleanCmd creates the 'clean' Cobra command to remove cached downloads and temporary data.
+// It returns a *cobra.Command that calls Manager.Clean, preserving installed Go versions.
 func newCleanCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "clean",
-		Short: "🧹 Clean download cache and optimize disk usage",
+		Short: "Clean download cache and optimize disk usage",
 		Long: `Remove cached download files and temporary data to reclaim disk space.
 
-📋 What gets cleaned:
+What gets cleaned:
   • Downloaded Go archive files (.tar.gz, .zip)
   • Temporary extraction directories
   • Incomplete or corrupted downloads
   • Obsolete cache metadata and checksums
 
-🔒 Safety guaranteed:
+Safety guaranteed:
   • Installed Go versions remain completely untouched
   • Your project files and configurations are preserved
   • Only temporary cache files are removed
 
-💡 Run periodically to keep your system clean and optimized.`,
+Run periodically to keep your system clean and optimized.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			_logger.Info("🧹 Cleaning download cache and temporary files...")
+			_logger.Info("Cleaning download cache and temporary files...")
 			_logger.Progress("Scanning cache directories for removable files")
 
 			mgr := _manager.New(getConfig())
@@ -36,10 +38,10 @@ func newCleanCmd() *cobra.Command {
 				return err
 			}
 
-			_logger.Success("✅ Cache cleanup completed successfully")
-			_logger.Info("💾 Disk space has been optimized")
-			_logger.Info("💡 Your installed Go versions remain untouched and ready to use")
-			_logger.Info("🔄 Future downloads will rebuild cache as needed")
+			_logger.Success("Cache cleanup completed successfully")
+			_logger.Info("Disk space has been optimized")
+			_logger.Info("Your installed Go versions remain untouched and ready to use")
+			_logger.Info("Future downloads will rebuild cache as needed")
 
 			return nil
 		},

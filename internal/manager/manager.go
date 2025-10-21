@@ -23,6 +23,8 @@ type Manager struct {
 	shell      _shell.Shell
 }
 
+// New constructs a Manager with the provided configuration.
+// It initializes a downloader and detects the user's shell.
 func New(cfg *_config.Config) *Manager {
 	return &Manager{
 		config:     cfg,
@@ -31,9 +33,9 @@ func New(cfg *_config.Config) *Manager {
 	}
 }
 
-// Install installs a Go version
+// Install downloads and installs the specified Go version.
+// version may be an exact string or "latest". Returns an error if resolution, download, or installation fails.
 func (m *Manager) Install(version string) error {
-	// Resolve version (latest, etc.)
 	timer := _logger.StartTimer("version resolution")
 	resolvedVersion, err := m.resolveVersion(version)
 	if err != nil {
@@ -42,13 +44,11 @@ func (m *Manager) Install(version string) error {
 	}
 	_logger.StopTimer(timer)
 
-	// Check if already installed
 	_logger.InternalProgress("Checking if version is already installed")
 	if m.IsInstalled(resolvedVersion) {
 		return fmt.Errorf("go version %s is already installed", resolvedVersion)
 	}
 
-	// Download and install
 	_logger.Info("Installing Go %s...", resolvedVersion)
 
 	timer = _logger.StartTimer("download URL retrieval")
@@ -74,14 +74,14 @@ func (m *Manager) Install(version string) error {
 	return nil
 }
 
-// Uninstall removes a Go version
+// Uninstall removes an installed Go version.
+// Returns an error if the version is not installed, is active, or removal fails.
 func (m *Manager) Uninstall(version string) error {
 	_logger.InternalProgress("Checking if version is installed")
 	if !m.IsInstalled(version) {
 		return fmt.Errorf("go version %s is not installed", version)
 	}
 
-	// Check if it's the current version
 	_logger.InternalProgress("Checking if version is currently active")
 	current, err := m.Current()
 	if err == nil && current == version {
@@ -101,59 +101,43 @@ func (m *Manager) Uninstall(version string) error {
 	return nil
 }
 
-// Use switches to a Go version
+// Use activates a Go version for the current session, as default, or for the local project.
+// setDefault sets it globally; setLocal writes a project version file. Returns an error if activation fails.
 func (m *Manager) Use(version string, setDefault, setLocal bool) error {
-	// Handle special "default" version
 	if version == "default" {
-		// Get the default version from the symlink
 		defaultVersion, err := m.CurrentGlobal()
 		if err != nil {
 			return fmt.Errorf("failed to get default version: %w", err)
 		}
 		version = defaultVersion
 	} else {
+		// Validate version is installed
 		_logger.InternalProgress("Checking if version is installed")
 		if !m.IsInstalled(version) {
 			return fmt.Errorf("go version %s is not installed. Run 'govman install %s' first", version, version)
 		}
 	}
 
-	// Set local version (project-specific)
-	if setLocal {
-		_logger.InternalProgress("Setting local version")
+	// Apply the version based on scope
+	switch {
+	case setLocal:
+		_logger.InternalProgress("Setting local version for project")
 		if err := m.setLocalVersion(version); err != nil {
 			return fmt.Errorf("failed to set local version: %w", err)
 		}
+		_logger.Success("Set Go %s as local version for this project", version)
 
-		// Also apply the local version immediately to the current session
-		// This ensures that `go version` matches `govman current` right after setting
-		versionBinPath := filepath.Join(m.config.GetVersionDir(version), "bin")
+	case setDefault:
+		_logger.InternalProgress("Setting as system default version")
 
-		// Inject to os.Environ for current process
-		os.Setenv("PATH", versionBinPath+string(os.PathListSeparator)+os.Getenv("PATH"))
-
-		// Print the shell command to stdout so the shell wrapper can evaluate it
-		// Detect shell type and output appropriate command
-		var shellCmd string
-		switch shell := m.shell.Name(); shell {
-		case "fish":
-			shellCmd = fmt.Sprintf("set -gx PATH \"%s\" $PATH", versionBinPath)
-		case "powershell":
-			shellCmd = fmt.Sprintf("$env:PATH = \"%s;\" + $env:PATH", versionBinPath)
-		case "cmd":
-			shellCmd = fmt.Sprintf("set PATH=%s;%%PATH%%", versionBinPath)
-		default:
-			// Default to bash/zsh format
-			shellCmd = fmt.Sprintf("export PATH=\"%s:$PATH\"", versionBinPath)
+		// Update config
+		m.config.DefaultVersion = version
+		if err := m.config.Save(); err != nil {
+			_logger.Warning("Failed to save default version to config: %v", err)
 		}
-		fmt.Println(shellCmd)
 
-		return nil
-	}
-
-	// Set as default (persistent)
-	if setDefault {
-		_logger.InternalProgress("Creating symlink")
+		// Create symlink
+		_logger.InternalProgress("Creating symlink for Go %s", version)
 		timer := _logger.StartTimer("symlink creation")
 		if err := m.createSymlink(version); err != nil {
 			_logger.StopTimer(timer)
@@ -161,68 +145,33 @@ func (m *Manager) Use(version string, setDefault, setLocal bool) error {
 		}
 		_logger.StopTimer(timer)
 
-		_logger.InternalProgress("Setting as default version")
-		m.config.DefaultVersion = version
-		timer = _logger.StartTimer("saving configuration")
-		if err := m.config.Save(); err != nil {
-			_logger.StopTimer(timer)
-			return fmt.Errorf("failed to save default version: %w", err)
-		}
-		_logger.StopTimer(timer)
-		return nil
-	}
-
-	// Session-only use: directly modify PATH in-process if possible (e.g., in interactive shell)
-	// But in general, we'll call a shell command to export it
-	versionBinPath := filepath.Join(m.config.GetVersionDir(version), "bin")
-
-	// Inject to os.Environ for current process
-	os.Setenv("PATH", versionBinPath+string(os.PathListSeparator)+os.Getenv("PATH"))
-
-	// Print the shell command to stdout so the shell wrapper can evaluate it
-	// Detect shell type and output appropriate command
-	var shellCmd string
-	switch shell := m.shell.Name(); shell {
-	case "fish":
-		shellCmd = fmt.Sprintf("set -gx PATH \"%s\" $PATH", versionBinPath)
-	case "powershell":
-		shellCmd = fmt.Sprintf("$env:PATH = \"%s;\" + $env:PATH", versionBinPath)
-	case "cmd":
-		shellCmd = fmt.Sprintf("set PATH=%s;%%PATH%%", versionBinPath)
 	default:
-		// Default to bash/zsh format
-		shellCmd = fmt.Sprintf("export PATH=\"%s:$PATH\"", versionBinPath)
+		// Session-only, no additional action needed
 	}
-	fmt.Println(shellCmd)
 
-	// Optionally, export to shell for confirmation (could also be omitted)
-	_logger.Verbose("PATH updated to include: %s", versionBinPath)
-
-	return nil
+	// Update PATH
+	versionBinPath := filepath.Join(m.config.GetVersionDir(version), "bin")
+	return m.shell.ExecutePathCommand(versionBinPath)
 }
 
-// Current returns the currently active Go version
-// Priority order: 1) Session version (explicit govman use), 2) Local version file, 3) Global default
+// Current returns the currently active Go version, checking session, local project, or global symlink.
+// Returns the version string or an error if none is active or validation fails.
 func (m *Manager) Current() (string, error) {
-	// Check if there's a session-only version active by checking the 'go' command in PATH FIRST
-	// This is important because explicit 'govman use' commands should override local files
-	// When user runs 'govman use', that should take priority over .govman-version files
 	sessionVersion, err := m.getCurrentSessionVersion()
 	if err == nil && sessionVersion != "" {
-		// Validate that the session version is actually installed
 		if !m.IsInstalled(sessionVersion) {
 			_logger.Warning("Session version %s is active but not managed by GOVMAN", sessionVersion)
 		}
+
 		return sessionVersion, nil
 	}
 
-	// Check for local version second (project-specific .govman-version file)
 	if localVersion := m.getLocalVersion(); localVersion != "" {
-		// Validate that the local version is actually installed
 		if !m.IsInstalled(localVersion) {
 			return "", fmt.Errorf("local version %s specified in %s is not installed - run 'govman install %s' to install it",
 				localVersion, m.config.AutoSwitch.ProjectFile, localVersion)
 		}
+
 		return localVersion, nil
 	}
 
@@ -234,16 +183,14 @@ func (m *Manager) Current() (string, error) {
 	return version, nil
 }
 
-// CurrentGlobal returns the globally active Go version from the symlink
+// CurrentGlobal resolves the active global version from the symlink and validates installation integrity.
+// Returns the version or an error for missing/corrupt symlink or installation.
 func (m *Manager) CurrentGlobal() (string, error) {
-	// Check for symlink to determine global active version
 	symlinkPath := m.config.GetCurrentSymlink()
 
-	// Check if symlink exists
 	linkInfo, err := os.Lstat(symlinkPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			// No symlink exists - check if we have a default version configured
 			if m.config.DefaultVersion != "" {
 				if m.IsInstalled(m.config.DefaultVersion) {
 					return "", fmt.Errorf("no active Go version found - default version %s is configured but symlink is missing. Run 'govman use %s' to activate it",
@@ -253,59 +200,53 @@ func (m *Manager) CurrentGlobal() (string, error) {
 						m.config.DefaultVersion, m.config.DefaultVersion, m.config.DefaultVersion)
 				}
 			}
+
 			return "", fmt.Errorf("no Go version is currently active - no symlink found at %s and no default version configured. Install a version with 'govman install <version>' and activate it with 'govman use <version>'",
 				symlinkPath)
 		}
+
 		return "", fmt.Errorf("failed to check symlink at %s: %w - this may indicate a permissions issue or corrupted installation",
 			symlinkPath, err)
 	}
 
-	// Verify it's actually a symlink
 	if linkInfo.Mode()&os.ModeSymlink == 0 {
 		return "", fmt.Errorf("expected symlink at %s but found %s instead - this may indicate a corrupted govman installation. Try running 'govman use <version>' to recreate the symlink",
 			symlinkPath, linkInfo.Mode().Type().String())
 	}
 
-	// Read the symlink target
 	target, err := os.Readlink(symlinkPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read symlink target from %s: %w - the symlink may be corrupted",
 			symlinkPath, err)
 	}
 
-	// Extract version from the target path
-	// Expected path format: /path/to/versions/go1.21.0/bin/go
-	// We need to extract "1.25.1" from this path
-	targetDir := filepath.Dir(target)      // Remove /go from the end
-	targetDir = filepath.Dir(targetDir)    // Remove /bin from the end
-	versionDir := filepath.Base(targetDir) // Get go1.21.0
+	targetDir := filepath.Dir(target)
+	targetDir = filepath.Dir(targetDir)
+	versionDir := filepath.Base(targetDir)
 
 	if !strings.HasPrefix(versionDir, "go") {
 		return "", fmt.Errorf("invalid symlink target format: expected version directory to start with 'go' but found %s - the symlink may be corrupted. Target path: %s",
 			versionDir, target)
 	}
 
-	version := versionDir[2:] // Remove "go" prefix to get "1.25.1"
-
-	// Validate the extracted version
+	version := versionDir[2:]
 	if version == "" {
 		return "", fmt.Errorf("could not extract version from symlink target %s - the symlink may be corrupted", target)
 	}
 
-	// Verify the version directory still exists
 	expectedVersionDir := m.config.GetVersionDir(version)
 	if _, err := os.Stat(expectedVersionDir); err != nil {
 		if os.IsNotExist(err) {
 			return "", fmt.Errorf("symlink points to Go %s but installation directory %s no longer exists - the installation may have been manually deleted. Run 'govman install %s' to reinstall",
 				version, expectedVersionDir, version)
 		}
+
 		return "", fmt.Errorf("failed to verify installation directory %s for Go %s: %w",
 			expectedVersionDir, version, err)
 	}
 
-	// Verify the actual Go executable exists and is functional
 	goExecutable := filepath.Join(expectedVersionDir, "bin", "go")
-	// On Windows, the executable has a .exe extension
+
 	if runtime.GOOS == "windows" {
 		goExecutable += ".exe"
 	}
@@ -314,6 +255,7 @@ func (m *Manager) CurrentGlobal() (string, error) {
 			return "", fmt.Errorf("go %s installation appears corrupted - executable not found at %s. Try reinstalling with 'govman install %s'",
 				version, goExecutable, version)
 		}
+
 		return "", fmt.Errorf("failed to verify Go executable at %s for version %s: %w",
 			goExecutable, version, err)
 	}
@@ -321,25 +263,26 @@ func (m *Manager) CurrentGlobal() (string, error) {
 	return version, nil
 }
 
-// ListInstalled returns all installed Go versions
+// ListInstalled returns installed Go versions sorted in descending order.
+// Returns the slice of versions or an error if the install directory cannot be read.
 func (m *Manager) ListInstalled() ([]string, error) {
 	entries, err := os.ReadDir(m.config.InstallDir)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return []string{}, nil
 		}
+
 		return nil, fmt.Errorf("failed to read install directory: %w", err)
 	}
 
 	var versions []string
 	for _, entry := range entries {
 		if entry.IsDir() && strings.HasPrefix(entry.Name(), "go") {
-			version := entry.Name()[2:] // Remove "go" prefix
+			version := entry.Name()[2:]
 			versions = append(versions, version)
 		}
 	}
 
-	// Sort versions
 	sort.Slice(versions, func(i, j int) bool {
 		return _golang.CompareVersions(versions[i], versions[j]) > 0
 	})
@@ -347,21 +290,25 @@ func (m *Manager) ListInstalled() ([]string, error) {
 	return versions, nil
 }
 
-// ListRemote returns all available Go versions for download
+// ListRemote fetches available remote Go versions.
+// includeUnstable controls inclusion of beta/rc versions. Returns the list or an error.
 func (m *Manager) ListRemote(includeUnstable bool) ([]string, error) {
 	return _golang.GetAvailableVersionsWithConfig(includeUnstable,
 		m.config.GoReleases.APIURL,
 		m.config.GoReleases.CacheExpiry)
 }
 
-// IsInstalled checks if a version is installed
+// IsInstalled reports whether a given version is installed by checking its directory.
+// Returns true if installed; false otherwise.
 func (m *Manager) IsInstalled(version string) bool {
 	installDir := m.config.GetVersionDir(version)
 	_, err := os.Stat(installDir)
+
 	return err == nil
 }
 
-// Info returns information about a version
+// Info returns metadata about an installed version.
+// Returns VersionInfo or an error if the version is not installed or info retrieval fails.
 func (m *Manager) Info(version string) (*_golang.VersionInfo, error) {
 	if !m.IsInstalled(version) {
 		return nil, fmt.Errorf("go version %s is not installed", version)
@@ -371,13 +318,13 @@ func (m *Manager) Info(version string) (*_golang.VersionInfo, error) {
 	return _golang.GetVersionInfo(installDir)
 }
 
-// Clean removes cached files
+// Clean removes and recreates the cache directory.
+// Returns an error if cleanup fails; nil on success.
 func (m *Manager) Clean() error {
 	if err := os.RemoveAll(m.config.CacheDir); err != nil {
 		return fmt.Errorf("failed to clean cache: %w", err)
 	}
 
-	// Recreate cache directory
 	if err := os.MkdirAll(m.config.CacheDir, 0755); err != nil {
 		return fmt.Errorf("failed to recreate cache directory: %w", err)
 	}
@@ -386,23 +333,24 @@ func (m *Manager) Clean() error {
 	return nil
 }
 
-// resolveVersion resolves aliases like "latest" or partial versions like "1.24"
+// resolveVersion resolves aliases and partial versions to a concrete version.
+// "latest" becomes the newest stable; "major.minor" expands to the latest patch. Returns the resolved version or an error.
 func (m *Manager) resolveVersion(version string) (string, error) {
 	if version == "latest" {
-		versions, err := m.ListRemote(false) // false for stable only
+		versions, err := m.ListRemote(false)
 		if err != nil {
 			return "", err
 		}
+
 		if len(versions) == 0 {
 			return "", fmt.Errorf("no stable versions available")
 		}
+
 		return versions[0], nil
 	}
 
-	// Check if it's a partial version like "1.24"
 	if strings.Count(version, ".") == 1 {
-		// Get all versions including unstable to have the complete set
-		versions, err := m.ListRemote(true) // true to include unstable versions
+		versions, err := m.ListRemote(true)
 		if err != nil {
 			return "", err
 		}
@@ -410,7 +358,6 @@ func (m *Manager) resolveVersion(version string) (string, error) {
 		prefix := version + "."
 		for _, v := range versions {
 			if strings.HasPrefix(v, prefix) {
-				// The list is sorted newest first, so the first match is the latest patch version.
 				return v, nil
 			}
 		}
@@ -419,35 +366,33 @@ func (m *Manager) resolveVersion(version string) (string, error) {
 	return version, nil
 }
 
-// createSymlink creates or updates the symlink to the specified version
+// createSymlink creates/replaces the global "go" symlink targeting the selected version's binary.
+// Returns an error if directory creation or symlink operation fails.
 func (m *Manager) createSymlink(version string) error {
-	// targetDir is the path to the version's root directory (e.g., /Users/sijunda/.govman/versions/go1.25.1)
 	versionRoot := m.config.GetVersionDir(version)
-	// The actual Go executable is inside the 'bin' directory within the version's root
+
 	goExecutablePath := filepath.Join(versionRoot, "bin", "go")
 
-	// On Windows, the executable has a .exe extension
 	if runtime.GOOS == "windows" {
 		goExecutablePath += ".exe"
 	}
 
-	symlinkPath := m.config.GetCurrentSymlink() // This gets the path to the symlink (e.g., /Users/sijunda/.govman/bin/go)
+	symlinkPath := m.config.GetCurrentSymlink()
 
-	// On Windows, the symlink should also have a .exe extension
 	if runtime.GOOS == "windows" {
 		symlinkPath += ".exe"
 	}
 
-	// Create bin directory if it doesn't exist
 	binDir := m.config.GetBinPath()
 	if err := os.MkdirAll(binDir, 0755); err != nil {
 		return fmt.Errorf("failed to create bin directory: %w", err)
 	}
 
-	// Remove existing symlink
-	os.Remove(symlinkPath)
+	// Remove the old symlink if it exists
+	if err := os.Remove(symlinkPath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to remove existing symlink: %w", err)
+	}
 
-	// Create new symlink
 	if err := _symlink.Create(goExecutablePath, symlinkPath); err != nil {
 		return fmt.Errorf("failed to create symlink: %w", err)
 	}
@@ -455,44 +400,69 @@ func (m *Manager) createSymlink(version string) error {
 	return nil
 }
 
-// setLocalVersion creates a .govman-version file in the current directory
+// setLocalVersion writes the project's autoswitch file with the specified version.
+// Returns an error if the file write fails.
 func (m *Manager) setLocalVersion(version string) error {
 	filename := m.config.AutoSwitch.ProjectFile
 	return os.WriteFile(filename, []byte(version), 0644)
 }
 
-// getLocalVersion reads version from .govman-version file if it exists
+// getLocalVersion reads the project's autoswitch file and returns the local version.
+// Returns an empty string if the file does not exist or cannot be read.
 func (m *Manager) getLocalVersion() string {
 	filename := m.config.AutoSwitch.ProjectFile
 	data, err := os.ReadFile(filename)
 	if err != nil {
 		return ""
 	}
+
 	return strings.TrimSpace(string(data))
 }
 
-// DefaultVersion returns the default Go version from the config
+// DefaultVersion returns the configured default version string.
 func (m *Manager) DefaultVersion() string {
 	return m.config.DefaultVersion
 }
 
-// GetDefaultVersionFromSymlink returns the version pointed to by the symlink
+// GetDefaultVersionFromSymlink returns the active/default version by reading the global symlink.
+// It delegates to CurrentGlobal and returns its result.
 func (m *Manager) GetDefaultVersionFromSymlink() (string, error) {
 	return m.CurrentGlobal()
 }
 
-// getCurrentSessionVersion checks if there's a session-only version active by running 'go version'
-// and parsing the output to determine which version is currently in the PATH
+// CurrentActivationMethod returns the activation method for the currently active Go version.
+// Returns "session-only", "project-local", or "system-default" based on how the current version is activated.
+func (m *Manager) CurrentActivationMethod() string {
+	sessionVersion, err := m.getCurrentSessionVersion()
+	if err == nil && sessionVersion != "" {
+		if localVersion := m.getLocalVersion(); localVersion != "" && localVersion == sessionVersion {
+			return "project-local"
+		}
+
+		globalVersion, err := m.CurrentGlobal()
+		if err == nil && globalVersion == sessionVersion {
+			return "system-default"
+		}
+
+		return "session-only"
+	}
+
+	if localVersion := m.getLocalVersion(); localVersion != "" {
+		return "project-local"
+	}
+
+	return "system-default"
+}
+
+// getCurrentSessionVersion executes "go version" and parses the active version.
+// Returns the version string or an error if command execution or parsing fails.
 func (m *Manager) getCurrentSessionVersion() (string, error) {
-	// Execute 'go version' to see which version is currently active in the PATH
 	cmd := exec.Command("go", "version")
 	output, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("failed to execute 'go version': %w", err)
 	}
 
-	// Parse the output to extract the version
-	// Expected format: "go version go1.25.1 darwin/amd64" or similar
 	versionStr := strings.TrimSpace(string(output))
 	parts := strings.Split(versionStr, " ")
 	if len(parts) < 3 {

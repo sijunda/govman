@@ -6,15 +6,12 @@ import (
 )
 
 var (
-	// These will be set by ldflags during build
-	// IMPORTANT: Must be exported (uppercase) to be set by linker
 	Version = "dev"
 	Commit  = "none"
 	Date    = "unknown"
 	BuildBy = "unknown"
 )
 
-// Info represents version information
 type Info struct {
 	Version   string `json:"version"`
 	Commit    string `json:"commit"`
@@ -24,7 +21,8 @@ type Info struct {
 	Platform  string `json:"platform"`
 }
 
-// Get returns version information
+// Get aggregates build-time and runtime information into an Info struct.
+// No parameters. Returns Info containing version, commit, date, builder, Go version, and platform.
 func Get() Info {
 	return Info{
 		Version:   Version,
@@ -36,11 +34,13 @@ func Get() Info {
 	}
 }
 
-// BuildVersion returns a version string for cobra
+// BuildVersion returns the display version string.
+// For development builds, it formats as "dev-<commit>"; otherwise returns the version as-is.
 func BuildVersion() string {
 	info := Get()
 	if info.Version == "dev" {
 		return fmt.Sprintf("%s-%s", info.Version, info.Commit)
 	}
+
 	return info.Version
 }

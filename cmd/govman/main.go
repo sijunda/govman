@@ -1,4 +1,3 @@
-// cmd/govman/main.go
 package main
 
 import (
@@ -8,6 +7,8 @@ import (
 	_cli "github.com/sijunda/govman/internal/cli"
 )
 
+// main is the entry point for the Govman CLI.
+// It runs cli.Execute and exits with a non-zero status code if an error occurs.
 func main() {
 	if err := _cli.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
