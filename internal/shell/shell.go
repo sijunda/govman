@@ -96,11 +96,12 @@ func escapeBashPath(path string) string {
 
 // escapeFishPath properly escapes a path for use in fish
 func escapeFishPath(path string) string {
-	// Fish uses different escaping rules
+	// Fish uses different escaping rules - escape backslash, quotes, and dollar signs
 	replacer := strings.NewReplacer(
 		`\`, `\\`,
 		`"`, `\"`,
 		`$`, `\$`,
+		`'`, `\'`,
 	)
 	return replacer.Replace(path)
 }
@@ -360,10 +361,7 @@ func (s *BashShell) ExecutePathCommand(path string) error {
 
 	pathCmd := s.PathCommand(path)
 
-	// Output the commands for eval
-	fmt.Println(`if [ -n "$GOBIN" ]; then export PATH="$GOBIN:$PATH"; fi`)
-	fmt.Println(`if command -v go >/dev/null 2>&1; then export PATH="$(go env GOPATH)/bin:$PATH"; fi`)
-	fmt.Println(`export PATH="$HOME/go/bin:$PATH"`)
+	// Output the command for eval
 	fmt.Println(pathCmd)
 
 	// Instructions to stderr so they don't interfere with eval
@@ -471,8 +469,9 @@ func (s *ZshShell) SetupCommands(binPath string) []string {
 		"    fi",
 		"}",
 		"",
-		"# Zsh-specific: Hook into chpwd for directory changes (guarded)",
-		"if [ -n \"$ZSH_VERSION\" ]; then autoload -U add-zsh-hook 2>/dev/null || true; add-zsh-hook chpwd govman_auto_switch 2>/dev/null || true; fi",
+		"# Zsh-specific: Hook into chpwd for directory changes",
+		"autoload -U add-zsh-hook",
+		"add-zsh-hook chpwd govman_auto_switch",
 		"",
 		"# Run auto-switch on shell startup",
 		"govman_auto_switch",
@@ -489,10 +488,6 @@ func (s *ZshShell) ExecutePathCommand(path string) error {
 	}
 
 	pathCmd := s.PathCommand(path)
-	// Output the commands for eval
-	fmt.Println(`if [ -n "$GOBIN" ]; then export PATH="$GOBIN:$PATH"; fi`)
-	fmt.Println(`if command -v go >/dev/null 2>&1; then export PATH="$(go env GOPATH)/bin:$PATH"; fi`)
-	fmt.Println(`export PATH="$HOME/go/bin:$PATH"`)
 	fmt.Println(pathCmd)
 
 	fmt.Fprintf(os.Stderr, "# To apply to current session, run:\n")
@@ -541,7 +536,7 @@ func (s *FishShell) SetupCommands(binPath string) []string {
 		"set -gx GOTOOLCHAIN local",
 		"",
 		"# Ensure GOBIN and GOPATH/bin are available",
-		`if test -n "$GOBIN"; and test -d "$GOBIN"; fish_add_path -p "$GOBIN"`,
+		`if test -n "$GOBIN"; and test -d "$GOBIN"; fish_add_path -p "$GOBIN"; end`,
 		`if type -q go; set -l gopath (go env GOPATH 2>/dev/null); if test -n "$gopath"; and test -d "$gopath/bin"; fish_add_path -p "$gopath/bin"; end; end`,
 		`set -l homegobin "$HOME/go/bin"; if test -d "$homegobin"; fish_add_path -p "$homegobin"; end`,
 		"",
@@ -626,10 +621,6 @@ func (s *FishShell) ExecutePathCommand(path string) error {
 	}
 
 	pathCmd := s.PathCommand(path)
-	// Output the commands for eval
-	fmt.Println(`if test -n "$GOBIN"; and test -d "$GOBIN"; fish_add_path -p "$GOBIN"`)
-	fmt.Println(`if type -q go; if type -q go; set -l gopath (go env GOPATH 2>/dev/null); if test -n "$gopath"; and test -d "$gopath/bin"; fish_add_path -p "$gopath/bin"; end; end; end`)
-	fmt.Println(`set -l homegobin "$HOME/go/bin"; if test -d "$homegobin"; fish_add_path -p "$homegobin"; end`)
 	fmt.Println(pathCmd)
 
 	fmt.Fprintf(os.Stderr, "# To apply to current session, run:\n")
@@ -706,15 +697,14 @@ func (s *PowerShell) SetupCommands(binPath string) []string {
 		"                }",
 		"            } else {",
 		"                $output | ForEach-Object { Write-Error $_ }",
-		"                exit $LASTEXITCODE",
+		"                return",
 		"            }",
 		"        } catch {",
 		"            Write-Error $_.Exception.Message",
-		"            exit 1",
+		"            return",
 		"        }",
 		"    }",
 		"    & $govman_bin @args",
-		"    exit $LASTEXITCODE",
 		"}",
 		"",
 		"# Auto-switch Go versions based on .govman-version file",
@@ -799,10 +789,6 @@ func (s *PowerShell) ExecutePathCommand(path string) error {
 	}
 
 	pathCmd := s.PathCommand(path)
-	// Output the commands for eval
-	fmt.Println(`if ($env:GOBIN) { $env:PATH = "$env:GOBIN;" + $env:PATH }`)
-	fmt.Println(`$goCmd = Get-Command go -ErrorAction SilentlyContinue; if ($goCmd) { $goCmd = Get-Command go -ErrorAction SilentlyContinue; if ($goCmd) { $gopath = (& go env GOPATH 2>$null); if ($gopath) { $env:PATH = "$gopath\bin;" + $env:PATH } } }`)
-	fmt.Println(`$homeGoBin = Join-Path $env:USERPROFILE "go\bin"; if (Test-Path $homeGoBin) { $env:PATH = "$homeGoBin;" + $env:PATH }`)
 	fmt.Println(pathCmd)
 
 	fmt.Fprintf(os.Stderr, "# To apply to current session, run:\n")
@@ -1015,7 +1001,7 @@ if "%~1"=="use" (
     if not "%~2"=="" (
         if not "%~2"=="--help" (
             if not "%~2"=="-h" (
-                "%GOVMAN_BIN%" use %2 > "%TEMP%\govman_path.tmp" 2>nul
+                "%GOVMAN_BIN%" %* > "%TEMP%\govman_path.tmp" 2>nul
                 if !errorlevel! equ 0 (
                     for /f "usebackq delims=" %%i in ("%TEMP%\govman_path.tmp") do (
                         echo %%i | findstr /b "set PATH=" >nul && %%i
