@@ -188,6 +188,14 @@ func (m *Manager) Current() (string, error) {
 func (m *Manager) CurrentGlobal() (string, error) {
 	symlinkPath := m.config.GetCurrentSymlink()
 
+	// On Windows, the symlink for the current go binary is created with .exe suffix.
+	// Mirror that here to check/read the correct path.
+	if runtime.GOOS == "windows" {
+		if !strings.HasSuffix(symlinkPath, ".exe") {
+			symlinkPath += ".exe"
+		}
+	}
+
 	linkInfo, err := os.Lstat(symlinkPath)
 	if err != nil {
 		if os.IsNotExist(err) {

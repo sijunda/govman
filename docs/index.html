@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, minimum-scale=1.0"
+    />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <title>Govman</title>
+
+    <!-- Docsify Theme -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/docsify/4.13.0/themes/vue.css"
+    />
+
+    <style>
+      /* Mobile-first responsive adjustments */
+      :root {
+        --base-font-size: 16px;
+        --sidebar-width: 280px;
+      }
+
+      body {
+        font-size: var(--base-font-size);
+      }
+
+      /* Improved mobile sidebar */
+      .sidebar {
+        background-color: #f8f9fa;
+        border-right: 1px solid #e1e4e8;
+      }
+
+      /* Better mobile navigation */
+      .sidebar-toggle {
+        background-color: transparent;
+        width: 40px;
+        height: 40px;
+        padding: 10px;
+      }
+
+      /* Content padding for mobile */
+      .content {
+        padding: 20px 15px;
+        max-width: 100%;
+        margin: 0 auto;
+      }
+
+      /* Main content area */
+      .markdown-section {
+        max-width: 100%;
+        margin: 0 auto;
+        padding: 0 0 60px 0;
+      }
+
+      /* Responsive images */
+      .markdown-section img {
+        max-width: 100%;
+        height: auto;
+      }
+
+      /* Better code blocks on mobile */
+      .markdown-section pre {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      /* Touch-friendly links */
+      .markdown-section a {
+        padding: 2px 0;
+      }
+
+      /* Tablet and up */
+      @media screen and (min-width: 768px) {
+        .content {
+          padding: 30px 40px;
+        }
+
+        .markdown-section {
+          max-width: 90%;
+        }
+
+        :root {
+          --base-font-size: 17px;
+        }
+      }
+
+      /* Desktop */
+      @media screen and (min-width: 1024px) {
+        .content {
+          padding: 40px 60px;
+        }
+
+        .markdown-section {
+          max-width: 1200px;
+        }
+      }
+
+      /* Large desktop */
+      @media screen and (min-width: 1440px) {
+        .markdown-section {
+          max-width: 1400px;
+        }
+      }
+
+      /* Light theme customization */
+      :root {
+        --theme-color: #2196f3;
+        --theme-color-secondary: #1976d2;
+      }
+
+      .sidebar ul li a {
+        color: #333;
+      }
+
+      .sidebar ul li.active > a {
+        color: var(--theme-color);
+        font-weight: 600;
+      }
+
+      /* Search box styling */
+      .search input {
+        border: 1px solid #e1e4e8;
+        border-radius: 4px;
+        padding: 8px 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">Loading...</div>
+
+    <script>
+      window.$docsify = {
+        name: "Govman",
+        repo: "",
+        basePath: "/",
+        homepage: "index.md",
+        loadSidebar: true,
+        loadNavbar: true,
+        maxLevel: 4,
+        subMaxLevel: 3,
+        auto2top: true,
+
+        // Mobile-friendly search
+        search: {
+          placeholder: "Search...",
+          noData: "No Results!",
+          depth: 6,
+          hideOtherSidebarContent: false,
+          paths: "auto",
+        },
+
+        // Responsive configuration
+        themeColor: "#2196F3",
+
+        // Pagination for better mobile navigation
+        pagination: {
+          previousText: "← Previous",
+          nextText: "Next →",
+          crossChapter: true,
+          crossChapterText: true,
+        },
+      };
+    </script>
+
+    <!-- Docsify core -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/docsify/4.13.0/docsify.min.js"></script>
+
+    <!-- Search plugin -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/docsify/4.13.0/plugins/search.min.js"></script>
+
+    <!-- Pagination plugin from unpkg -->
+    <script src="https://unpkg.com/docsify-pagination/dist/docsify-pagination.min.js"></script>
+  </body>
+</html>

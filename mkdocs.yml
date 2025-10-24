@@ -1,0 +1,30 @@
+site_name: Govman Docs
+docs_dir: docs
+
+nav:
+  - All-in-One Guide: index.md
+  - Getting Started:
+      - Quick Start: quick-start.md
+      - Installation: installation.md
+      - Configuration: configuration.md
+      - Shell Integration: shell-integration.md
+  - Usage:
+      - Commands Reference: commands.md
+      - Troubleshooting: troubleshooting.md
+  - Developer Guides:
+      - Getting Started: getting-started.md
+      - Project Structure: project-structure.md
+      - Dependencies: dependencies.md
+      - Data Flow: data-flow.md
+      - Architecture Overview: architecture.md
+      - Architecture Diagrams: architecture-diagrams.md
+      - Internals Troubleshooting: internals-troubleshooting.md
+      - Developer Onboarding: developer-onboarding.md
+  - Release Notes: release-notes.md
+
+theme:
+  name: mkdocs
+
+markdown_extensions:
+  - toc:
+      permalink: true

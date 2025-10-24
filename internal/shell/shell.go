@@ -277,6 +277,10 @@ func (s *BashShell) SetupCommands(binPath string) []string {
 	commands := []string{
 		"# GOVMAN - Go Version Manager",
 		fmt.Sprintf(`export PATH="%s:$PATH"`, escapedPath),
+		"# Ensure GOBIN and GOPATH/bin are available",
+		`if [ -n "$GOBIN" ]; then export PATH="$GOBIN:$PATH"; fi`,
+		`export PATH="$(go env GOPATH)/bin:$PATH"`,
+		`export PATH="$HOME/go/bin:$PATH"`,
 		"export GOTOOLCHAIN=local",
 		"",
 		"# Wrapper function for automatic PATH execution",
@@ -356,7 +360,10 @@ func (s *BashShell) ExecutePathCommand(path string) error {
 
 	pathCmd := s.PathCommand(path)
 
-	// Output the command for eval
+	// Output the commands for eval
+	fmt.Println(`if [ -n "$GOBIN" ]; then export PATH="$GOBIN:$PATH"; fi`)
+	fmt.Println(`export PATH="$(go env GOPATH)/bin:$PATH"`)
+	fmt.Println(`export PATH="$HOME/go/bin:$PATH"`)
 	fmt.Println(pathCmd)
 
 	// Instructions to stderr so they don't interfere with eval
@@ -403,6 +410,10 @@ func (s *ZshShell) SetupCommands(binPath string) []string {
 	commands := []string{
 		"# GOVMAN - Go Version Manager",
 		fmt.Sprintf(`export PATH="%s:$PATH"`, escapedPath),
+		"# Ensure GOBIN and GOPATH/bin are available",
+		`if [ -n "$GOBIN" ]; then export PATH="$GOBIN:$PATH"; fi`,
+		`export PATH="$(go env GOPATH)/bin:$PATH"`,
+		`export PATH="$HOME/go/bin:$PATH"`,
 		"export GOTOOLCHAIN=local",
 		"",
 		"# Wrapper function for automatic PATH execution",
@@ -460,9 +471,8 @@ func (s *ZshShell) SetupCommands(binPath string) []string {
 		"    fi",
 		"}",
 		"",
-		"# Zsh-specific: Hook into chpwd for directory changes",
-		"autoload -U add-zsh-hook",
-		"add-zsh-hook chpwd govman_auto_switch",
+		"# Zsh-specific: Hook into chpwd for directory changes (guarded)",
+		"if [ -n \"$ZSH_VERSION\" ]; then autoload -U add-zsh-hook 2>/dev/null || true; add-zsh-hook chpwd govman_auto_switch 2>/dev/null || true; fi",
 		"",
 		"# Run auto-switch on shell startup",
 		"govman_auto_switch",
@@ -479,6 +489,10 @@ func (s *ZshShell) ExecutePathCommand(path string) error {
 	}
 
 	pathCmd := s.PathCommand(path)
+	// Output the commands for eval
+	fmt.Println(`if [ -n "$GOBIN" ]; then export PATH="$GOBIN:$PATH"; fi`)
+	fmt.Println(`export PATH="$(go env GOPATH)/bin:$PATH"`)
+	fmt.Println(`export PATH="$HOME/go/bin:$PATH"`)
 	fmt.Println(pathCmd)
 
 	fmt.Fprintf(os.Stderr, "# To apply to current session, run:\n")
@@ -525,6 +539,11 @@ func (s *FishShell) SetupCommands(binPath string) []string {
 		"# GOVMAN - Go Version Manager",
 		fmt.Sprintf(`fish_add_path -p "%s"`, escapedPath),
 		"set -gx GOTOOLCHAIN local",
+		"",
+		"# Ensure GOBIN and GOPATH/bin are available",
+		`if test -n "$GOBIN"; and test -d "$GOBIN"; fish_add_path -p "$GOBIN"`,
+		`set -l gopath (go env GOPATH 2>/dev/null); if test -n "$gopath"; and test -d "$gopath/bin"; fish_add_path -p "$gopath/bin"; end`,
+		`set -l homegobin "$HOME/go/bin"; if test -d "$homegobin"; fish_add_path -p "$homegobin"; end`,
 		"",
 		"# Wrapper function for automatic PATH execution",
 		"function govman",
@@ -607,6 +626,10 @@ func (s *FishShell) ExecutePathCommand(path string) error {
 	}
 
 	pathCmd := s.PathCommand(path)
+	// Output the commands for eval
+	fmt.Println(`if test -n "$GOBIN"; and test -d "$GOBIN"; fish_add_path -p "$GOBIN"`)
+	fmt.Println(`set -l gopath (go env GOPATH 2>/dev/null); if test -n "$gopath"; and test -d "$gopath/bin"; fish_add_path -p "$gopath/bin"; end`)
+	fmt.Println(`set -l homegobin "$HOME/go/bin"; if test -d "$homegobin"; fish_add_path -p "$homegobin"; end`)
 	fmt.Println(pathCmd)
 
 	fmt.Fprintf(os.Stderr, "# To apply to current session, run:\n")
@@ -662,6 +685,11 @@ func (s *PowerShell) SetupCommands(binPath string) []string {
 		"# GOVMAN - Go Version Manager",
 		fmt.Sprintf(`$env:PATH = "%s;" + $env:PATH`, escapedPath),
 		"$env:GOTOOLCHAIN = 'local'",
+		"",
+		"# Ensure GOPATH\\bin and GOBIN are available",
+		`if ($env:GOBIN) { $env:PATH = "$env:GOBIN;" + $env:PATH }`,
+		`$gopath = (& go env GOPATH 2>$null); if ($gopath) { $env:PATH = "$gopath\bin;" + $env:PATH }`,
+		`$homeGoBin = Join-Path $env:USERPROFILE "go\bin"; if (Test-Path $homeGoBin) { $env:PATH = "$homeGoBin;" + $env:PATH }`,
 		"",
 		"# Wrapper function for automatic PATH execution",
 		"function govman {",
@@ -771,6 +799,10 @@ func (s *PowerShell) ExecutePathCommand(path string) error {
 	}
 
 	pathCmd := s.PathCommand(path)
+	// Output the commands for eval
+	fmt.Println(`if ($env:GOBIN) { $env:PATH = "$env:GOBIN;" + $env:PATH }`)
+	fmt.Println(`$gopath = (& go env GOPATH 2>$null); if ($gopath) { $env:PATH = "$gopath\bin;" + $env:PATH }`)
+	fmt.Println(`$homeGoBin = Join-Path $env:USERPROFILE "go\bin"; if (Test-Path $homeGoBin) { $env:PATH = "$homeGoBin;" + $env:PATH }`)
 	fmt.Println(pathCmd)
 
 	fmt.Fprintf(os.Stderr, "# To apply to current session, run:\n")
