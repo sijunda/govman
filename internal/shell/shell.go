@@ -339,11 +339,21 @@ func (s *BashShell) SetupCommands(binPath string) []string {
 		"    fi",
 		"}",
 		"",
-		"# Hook into cd command for auto-switching",
-		"govman_cd() {",
-		`    builtin cd "$@" && govman_auto_switch`,
+		"# Bash-specific: Hook into PROMPT_COMMAND for directory changes",
+		`__govman_prev_pwd="$PWD"`,
+		"__govman_check_dir_change() {",
+		`    if [[ "$PWD" != "$__govman_prev_pwd" ]]; then`,
+		`        __govman_prev_pwd="$PWD"`,
+		"        govman_auto_switch",
+		"    fi",
 		"}",
-		"alias cd=govman_cd",
+		"",
+		"# Add to PROMPT_COMMAND (preserves existing commands)",
+		`if [[ -z "$PROMPT_COMMAND" ]]; then`,
+		`    PROMPT_COMMAND="__govman_check_dir_change"`,
+		"else",
+		`    PROMPT_COMMAND="__govman_check_dir_change;$PROMPT_COMMAND"`,
+		"fi",
 		"",
 		"# Run auto-switch on shell startup",
 		"govman_auto_switch",
@@ -596,11 +606,6 @@ func (s *FishShell) SetupCommands(binPath string) []string {
 		"    end",
 		"end",
 		"",
-		"# Hook into cd command for auto-switching",
-		"function cd",
-		"    builtin cd $argv; and govman_auto_switch",
-		"end",
-		"",
 		"# Fish-specific: Hook into directory changes",
 		"function __govman_cd_hook --on-variable PWD",
 		"    govman_auto_switch",
@@ -763,13 +768,25 @@ func (s *PowerShell) SetupCommands(binPath string) []string {
 		"    }",
 		"}",
 		"",
+		"# PowerShell-specific: Hook into location changes",
+		"$Global:GovmanPreviousLocation = $PWD.Path",
+		"",
+		"function Global:Invoke-GovmanLocationCheck {",
+		"    if ($PWD.Path -ne $Global:GovmanPreviousLocation) {",
+		"        $Global:GovmanPreviousLocation = $PWD.Path",
+		"        Invoke-GovmanAutoSwitch",
+		"    }",
+		"}",
+		"",
 		"# Hook into prompt for auto-switching",
 		"if (Get-Command prompt -ErrorAction SilentlyContinue) {",
 		"    $Global:GovmanOriginalPrompt = $function:prompt",
 		"    function global:prompt {",
-		"        Invoke-GovmanAutoSwitch",
+		"        Invoke-GovmanLocationCheck",
 		"        if ($Global:GovmanOriginalPrompt) {",
 		"            & $Global:GovmanOriginalPrompt",
+		"        } else {",
+		"            \"PS $($executionContext.SessionState.Path.CurrentLocation)$('>' * ($nestedPromptLevel + 1)) \"",
 		"        }",
 		"    }",
 		"}",
@@ -825,17 +842,34 @@ func (s *CmdShell) PathCommand(path string) string {
 
 // SetupCommands returns guidance for integrating govman with Command Prompt.
 func (s *CmdShell) SetupCommands(binPath string) []string {
-	escapedPath := escapeCmdPath(binPath)
+	escapedPath := escapeBashPath(binPath)
 
-	return []string{
+	commands := []string{
+		"@echo off",
 		"REM GOVMAN - Go Version Manager",
-		fmt.Sprintf(`set PATH=%s;%%PATH%%`, escapedPath),
+		fmt.Sprintf(`set "PATH=%s;%%PATH%%"`, escapedPath),
 		"set GOTOOLCHAIN=local",
 		"",
-		"REM Note: CMD has limited scripting capabilities.",
-		"REM For best experience, use PowerShell instead.",
+		"REM Ensure GOBIN and GOPATH\\bin are available",
+		`if defined GOBIN set "PATH=%GOBIN%;%PATH%"`,
+		"",
+		"REM Check for go command and add GOPATH\\bin",
+		`where go >nul 2>&1`,
+		`if %errorlevel% equ 0 (`,
+		`    for /f "delims=" %%i in ('go env GOPATH 2^>nul') do set "GOPATH_BIN=%%i\bin"`,
+		`    if defined GOPATH_BIN if exist "%GOPATH_BIN%" set "PATH=%GOPATH_BIN%;%PATH%"`,
+		`)`,
+		"",
+		"REM Add Go's default bin directory",
+		`if exist "%USERPROFILE%\go\bin" set "PATH=%USERPROFILE%\go\bin;%PATH%"`,
+		"",
+		"REM Note: Auto-switching (.govman-version) is not available in Command Prompt",
+		"REM Use 'govman use <version>' to switch versions manually",
+		"",
 		"REM END GOVMAN",
 	}
+
+	return commands
 }
 
 // ExecutePathCommand outputs the PATH command for Command Prompt.
@@ -976,7 +1010,7 @@ func initializePowerShell(shell Shell, binPath string, force bool) error {
 
 // initializeCmdShell creates a batch wrapper for Command Prompt.
 func initializeCmdShell(shell Shell, binPath string, force bool) error {
-	wrapperPath := filepath.Join(binPath, "govman_wrapper.bat")
+	wrapperPath := filepath.Join(binPath, "govman.bat")
 
 	// Check if wrapper exists
 	if !force && fileExists(wrapperPath) {
@@ -985,7 +1019,7 @@ func initializeCmdShell(shell Shell, binPath string, force bool) error {
 
 	// Verify write permissions
 	testFile := filepath.Join(binPath, ".govman_test")
-	if err := os.WriteFile(testFile, []byte("test"), 0755); err != nil {
+	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
 		return fmt.Errorf("insufficient permissions to write to %s: %w", binPath, err)
 	}
 	os.Remove(testFile)
@@ -997,26 +1031,56 @@ setlocal enabledelayedexpansion
 REM GOVMAN Wrapper for Command Prompt
 set "GOVMAN_BIN={{.BinPath}}\govman.exe"
 
+REM Check if govman.exe exists
+if not exist "%GOVMAN_BIN%" (
+    echo Error: govman.exe not found at %GOVMAN_BIN% >&2
+    exit /b 1
+)
+
+REM Handle 'use' command with special PATH updating logic
 if "%~1"=="use" (
     if not "%~2"=="" (
         if not "%~2"=="--help" (
             if not "%~2"=="-h" (
-                "%GOVMAN_BIN%" %* > "%TEMP%\govman_path.tmp" 2>nul
-                if !errorlevel! equ 0 (
-                    for /f "usebackq delims=" %%i in ("%TEMP%\govman_path.tmp") do (
-                        echo %%i | findstr /b "set PATH=" >nul && %%i
+                REM Execute govman use and capture output
+                "%GOVMAN_BIN%" %* > "%TEMP%\govman_output.tmp" 2>&1
+                set GOVMAN_EXIT_CODE=!errorlevel!
+                
+                if !GOVMAN_EXIT_CODE! equ 0 (
+                    REM Look for PATH export command in output
+                    set "PATH_UPDATED="
+                    for /f "usebackq delims=" %%i in ("%TEMP%\govman_output.tmp") do (
+                        set "LINE=%%i"
+                        echo !LINE! | findstr /b /c:"set PATH=" >nul
+                        if !errorlevel! equ 0 (
+                            REM Execute the PATH update command
+                            %%i
+                            set "PATH_UPDATED=1"
+                        )
                     )
-                    del "%TEMP%\govman_path.tmp" 2>nul
-                    echo Go version switched successfully
+                    del "%TEMP%\govman_output.tmp" 2>nul
+                    if defined PATH_UPDATED (
+                        echo.
+                        echo ✓ Go version switched successfully
+                        echo.
+                        echo Note: This change only affects the current Command Prompt session.
+                        echo To verify, run: go version
+                    ) else (
+                        echo Warning: No PATH update found in govman output >&2
+                    )
                     exit /b 0
                 ) else (
-                    if exist "%TEMP%\govman_path.tmp" del "%TEMP%\govman_path.tmp" 2>nul
+                    REM Show error output
+                    type "%TEMP%\govman_output.tmp" >&2
+                    del "%TEMP%\govman_output.tmp" 2>nul
+                    exit /b !GOVMAN_EXIT_CODE!
                 )
             )
         )
     )
 )
 
+REM For all other commands, just pass through
 "%GOVMAN_BIN%" %*
 exit /b %errorlevel%
 `
@@ -1038,16 +1102,51 @@ exit /b %errorlevel%
 		return fmt.Errorf("failed to generate wrapper: %w", err)
 	}
 
-	// Write wrapper file
-	if err := os.WriteFile(wrapperPath, []byte(buf.String()), 0755); err != nil {
+	// Write wrapper file with CRLF line endings for Windows
+	content := strings.ReplaceAll(buf.String(), "\n", "\r\n")
+	if err := os.WriteFile(wrapperPath, []byte(content), 0644); err != nil {
 		return fmt.Errorf("failed to create wrapper: %w", err)
 	}
 
+	// Print setup instructions (inline, no separate function)
 	fmt.Printf("✅ Created govman wrapper: %s\n\n", wrapperPath)
-	fmt.Println("📝 To complete setup, add govman to your PATH:")
-	fmt.Printf("   setx PATH \"%%PATH%%;%s\"\n\n", binPath)
-	fmt.Println("💡 For better experience, consider using PowerShell instead:")
-	fmt.Println("   powershell -Command \"govman init\"")
+	fmt.Println("📝 SETUP INSTRUCTIONS")
+	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	fmt.Println()
+	fmt.Println("Step 1: Add govman to your PATH")
+	fmt.Println()
+	fmt.Println("   Option A - Permanent (Recommended):")
+	fmt.Printf("   setx PATH \"%%PATH%%;%s\"\n", binPath)
+	fmt.Println()
+	fmt.Println("   Option B - Current session only:")
+	fmt.Printf("   set PATH=%%PATH%%;%s\n", binPath)
+	fmt.Println()
+	fmt.Println("Step 2: Restart Command Prompt (if using Option A)")
+	fmt.Println()
+	fmt.Println("Step 3: Verify installation")
+	fmt.Println("   govman --version")
+	fmt.Println()
+	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	fmt.Println()
+	fmt.Println("⚠️  COMMAND PROMPT LIMITATIONS")
+	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	fmt.Println("• No automatic version switching (.govman-version not supported)")
+	fmt.Println("• Must manually run 'govman use <version>' in each session")
+	fmt.Println("• PATH changes only affect current Command Prompt window")
+	fmt.Println()
+	fmt.Println("💡 FOR BETTER EXPERIENCE")
+	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	fmt.Println("Consider using one of these shells for auto-switching:")
+	fmt.Println()
+	fmt.Println("• PowerShell (Recommended for Windows):")
+	fmt.Println("  powershell -Command \"govman init\"")
+	fmt.Println()
+	fmt.Println("• Git Bash (if installed):")
+	fmt.Println("  bash -c 'govman init'")
+	fmt.Println()
+	fmt.Println("• WSL (Windows Subsystem for Linux):")
+	fmt.Println("  wsl -e govman init")
+	fmt.Println()
 
 	return nil
 }
